@@ -1,0 +1,62 @@
+const { Buffer } = require('buffer');
+const { nanoid } = require('nanoid/non-secure');
+
+const Webassembly = require('./NativeWebassembly').default;
+
+export type { InstantiateParams } from './NativeWebassembly';
+
+export type WebassemblyInstance<Exports extends object> = {
+  readonly exports: Exports;
+};
+
+export type Imports = Record<string, Function>;
+
+export type WebAssemblyImportObject = {
+  readonly imports: Imports;
+};
+
+export type WebassemblyInstantiateResult<Exports extends object> = {
+  readonly instance: WebassemblyInstance<Exports>;
+};
+
+export function instantiate<Exports extends object>(
+  bufferSource: Uint8Array | ArrayBuffer,
+  importObject: WebAssemblyImportObject | undefined = undefined
+): WebassemblyInstantiateResult<Exports> {
+  const iid = nanoid();
+
+  const instanceResult = Webassembly.instantiate({
+    iid,
+    bufferSource: Buffer.from(bufferSource).toString('base64'),
+    stackSizeInBytes: 8192,
+    rawFunctions: Object.keys(importObject?.imports || {}),
+  });
+
+  if (instanceResult !== 0)
+    throw new Error('Failed to instantiate WebAssembly.');
+
+  const exports = new Proxy({} as Exports, {
+    get(_, func) {
+      if (typeof func !== 'string')
+        throw new Error(`Expected string, encountered ${typeof func}.`);
+
+      return (...args: readonly number[]) => {
+        const res = Webassembly.invoke({
+          iid,
+          func,
+          args: args.map((e) => e.toString()),
+        });
+
+        if (!res.length) return undefined;
+
+        const num = res.map(parseFloat);
+
+        if (res.length !== 1) return num;
+
+        return num[0];
+      };
+    },
+  });
+
+  return { instance: { exports } };
+}

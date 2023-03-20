@@ -1,0 +1,4 @@
+*.env
+.idea/
+wasm3/
+
