@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as WebAssembly from 'react-native-webassembly';
 
 import { useWasmUri } from './useWasmUri';
 
@@ -121,6 +122,10 @@ export function useWasmCircomRuntime() {
     'https://github.com/cawfree/zk-assets/raw/main/Circuits/01/.wasm',
     React.useMemo(
       () => ({
+        env: {
+          // https://github.com/iden3/circom_runtime/blob/f9de6f7d6efe521b5df6775258779ec9032b5830/js/witness_calculator.js#L27
+          memory: new WebAssembly.Memory({ initial: 32767 }),
+        },
         imports: {
           exceptionHandler(value: number) {
             console.warn('got exception', value);
