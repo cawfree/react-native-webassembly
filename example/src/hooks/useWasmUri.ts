@@ -29,7 +29,7 @@ export function useWasmUri<Exports extends object>(
 
           setState({
             loading: false,
-            result: WebAssembly.instantiate<Exports>(
+            result: await WebAssembly.instantiate<Exports>(
               bufferSource,
               importObject
             ),

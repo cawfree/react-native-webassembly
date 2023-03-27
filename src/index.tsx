@@ -9,9 +9,32 @@ export type WebassemblyInstance<Exports extends object> = {
   readonly exports: Exports;
 };
 
+type WebAssemblyMemoryParams = {
+  readonly initial: number;
+};
+
+export class Memory {
+  readonly __initial: WebAssemblyMemoryParams['initial'] | undefined;
+
+  constructor(params: WebAssemblyMemoryParams) {
+    this.__initial = params?.initial;
+  }
+}
+
+export type WebAssemblyEnv = {
+  readonly memory?: Memory;
+};
+
+const DEFAULT_STACK_SIZE_IN_BYTES = 8192;
+
+const DEFAULT_MEMORY = new Memory({
+  initial: DEFAULT_STACK_SIZE_IN_BYTES,
+});
+
 export type Imports = Record<string, Function>;
 
 export type WebAssemblyImportObject = {
+  readonly env?: WebAssemblyEnv;
   readonly imports: Imports;
 };
 
@@ -19,16 +42,21 @@ export type WebassemblyInstantiateResult<Exports extends object> = {
   readonly instance: WebassemblyInstance<Exports>;
 };
 
-export function instantiate<Exports extends object>(
+// https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/instantiate
+export async function instantiate<Exports extends object>(
   bufferSource: Uint8Array | ArrayBuffer,
   importObject: WebAssemblyImportObject | undefined = undefined
-): WebassemblyInstantiateResult<Exports> {
+): Promise<WebassemblyInstantiateResult<Exports>> {
   const iid = nanoid();
+
+  const memory = importObject?.env?.memory || DEFAULT_MEMORY;
+
+  const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
   const instanceResult = Webassembly.instantiate({
     iid,
     bufferSource: Buffer.from(bufferSource).toString('base64'),
-    stackSizeInBytes: 8192,
+    stackSizeInBytes,
     rawFunctions: Object.keys(importObject?.imports || {}),
   });
 

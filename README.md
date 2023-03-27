@@ -41,7 +41,7 @@ const {
   responseType: 'arraybuffer',
 });
 
-const module = WebAssembly.instantiate<{
+const module = await WebAssembly.instantiate<{
   add: (a: number, b: number) => number;
 }>(bufferSource);
 ```
@@ -65,7 +65,7 @@ For example, the [__Circom__](https://github.com/iden3/circom) library converts 
 It's simple to define an `importObject`:
 
 ```typescript
-const module = WebAssembly.instantiate<{
+const module = await WebAssembly.instantiate<{
   getVersion: () => number;
   getFieldNumLen32: () => number;
   // ...
