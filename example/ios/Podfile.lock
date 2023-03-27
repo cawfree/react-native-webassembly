@@ -656,7 +656,7 @@ PODS:
   - React-jsinspector (0.71.4)
   - React-logger (0.71.4):
     - glog
-  - react-native-webassembly (0.1.1):
+  - react-native-webassembly (0.2.0):
     - RCT-Folly
     - RCTRequired
     - RCTTypeSafety
@@ -961,7 +961,7 @@ SPEC CHECKSUMS:
   React-jsiexecutor: d6b7fa9260aa3cb40afee0507e3bc1d17ecaa6f2
   React-jsinspector: 1f51e775819199d3fe9410e69ee8d4c4161c7b06
   React-logger: 0d58569ec51d30d1792c5e86a8e3b78d24b582c6
-  react-native-webassembly: da9aabf11210ae03fa7631b87ad3e73a75faa6aa
+  react-native-webassembly: de0de8307d35a8666e8896f6a90060cbf5c74385
   React-perflogger: 0bb0522a12e058f6eb69d888bc16f40c16c4b907
   React-RCTActionSheet: bfd675a10f06a18728ea15d82082d48f228a213a
   React-RCTAnimation: 2fa220b2052ec75b733112aca39143d34546a941
