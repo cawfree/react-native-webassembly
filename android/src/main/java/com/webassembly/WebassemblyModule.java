@@ -31,7 +31,14 @@ public class WebassemblyModule extends NativeWebassemblySpec {
     System.loadLibrary("cpp");
   }
 
-  private static native double nativeInstantiate(String iid, byte[] bufferSource, long bufferSourceLength, double stackSizeInBytes, String[] rawFunctions);
+  private static native double nativeInstantiate(
+    String iid,
+    byte[] bufferSource,
+    long bufferSourceLength,
+    double stackSizeInBytes,
+    String[] rawFunctions,
+    String[] rawFunctionScopes
+  );
 
   private static native double nativeInvoke(String iid, String func, String[] args, ArrayList<String> result);
 
@@ -39,12 +46,16 @@ public class WebassemblyModule extends NativeWebassemblySpec {
     final String iid = pParams.getString("iid");
     final String bufferSource = pParams.getString("bufferSource");
     final int stackSizeInBytes = pParams.getInt("stackSizeInBytes");
+
     final ReadableArray rawFunctionsArray = pParams.getArray("rawFunctions");
+    final ReadableArray rawFunctionScopesArray = pParams.getArray("rawFunctionScopes");
 
     final String[] rawFunctions = new String[rawFunctionsArray.size()];
+    final String[] rawFunctionScopes = new String[rawFunctionScopesArray.size()];
 
     for (int i = 0; i < rawFunctionsArray.size(); i += 1) {
       rawFunctions[i] = rawFunctionsArray.getString(i);
+      rawFunctionScopes[i] = rawFunctionScopesArray.getString(i);
     }
 
     final byte[] bufferSourceBytes = Base64.decode(bufferSource, Base64.DEFAULT);
@@ -54,7 +65,8 @@ public class WebassemblyModule extends NativeWebassemblySpec {
       bufferSourceBytes,
       bufferSourceBytes.length,
       stackSizeInBytes,
-      rawFunctions
+      rawFunctions,
+      rawFunctionScopes
     );
   }
 

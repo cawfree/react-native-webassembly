@@ -53,11 +53,14 @@ export async function instantiate<Exports extends object>(
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
+  const rawFunctions = Object.keys(importObject?.imports || {});
+
   const instanceResult = Webassembly.instantiate({
     iid,
     bufferSource: Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
-    rawFunctions: Object.keys(importObject?.imports || {}),
+    rawFunctions,
+    rawFunctionScopes: rawFunctions.map(() => '*'),
   });
 
   if (instanceResult !== 0)
