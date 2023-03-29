@@ -33,34 +33,61 @@ const DEFAULT_MEMORY = new Memory({
 
 export type Imports = Record<string, Function>;
 
-export type WebAssemblyImportObject = {
+type ImportsMap = Omit<{
+  readonly [key: string]: Imports | WebAssemblyEnv;
+}, 'env'>;
+
+export type WebAssemblyImportObject = ImportsMap & {
   readonly env?: WebAssemblyEnv;
-  readonly imports: Imports;
-};
+}
 
 export type WebassemblyInstantiateResult<Exports extends object> = {
   readonly instance: WebassemblyInstance<Exports>;
 };
 
+type ScopedFunction = {
+  readonly functionName: string;
+  readonly scope: string;
+};
+
+const getScopedFunctions = (importsMap: ImportsMap): readonly ScopedFunction[] => {
+  if (!importsMap) return [];
+
+  return Object.entries(importsMap)
+    .flatMap(
+      ([scope, imports]) =>
+        Object.keys(imports).map(functionName => ({scope, functionName}))
+    );
+};
+
 // https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/instantiate
 export async function instantiate<Exports extends object>(
   bufferSource: Uint8Array | ArrayBuffer,
-  importObject: WebAssemblyImportObject | undefined = undefined
+  maybeImportObject: WebAssemblyImportObject | undefined = undefined
 ): Promise<WebassemblyInstantiateResult<Exports>> {
   const iid = nanoid();
 
-  const memory = importObject?.env?.memory || DEFAULT_MEMORY;
+  const importObject =  maybeImportObject || {};
+  const {
+    env: maybeEnv,
+    ...extras
+  } = importObject;
+
+  const memory = maybeEnv?.memory || DEFAULT_MEMORY;
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
-  const rawFunctions = Object.keys(importObject?.imports || {});
+  const scopedFunctions = getScopedFunctions(extras);
+
+  const rawFunctions = scopedFunctions.map(({functionName}) => functionName);
+  const rawFunctionScopes = scopedFunctions.map(({scope}) => scope);
 
   const instanceResult = Webassembly.instantiate({
     iid,
     bufferSource: Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
     rawFunctions,
-    rawFunctionScopes: rawFunctions.map(() => '*'),
+    rawFunctionScopes,
   });
 
   if (instanceResult !== 0)
