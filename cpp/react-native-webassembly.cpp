@@ -65,8 +65,6 @@ namespace webassembly {
         t_v_ii v_ii = [](int32_t p, int32_t q) {
           throw std::runtime_error(std::string("v(ii)"));
         };
-          
-        std::cout << "scope is " << scope.data() << std::endl;
 
         // HACK: How to propagate instantiation back to runtime?
         try { mod.link(scope.data(), name.data(), v_i);  continue; } catch (wasm3::error &e) {}
