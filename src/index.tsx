@@ -33,13 +33,16 @@ const DEFAULT_MEMORY = new Memory({
 
 export type Imports = Record<string, Function>;
 
-type ImportsMap = Omit<{
-  readonly [key: string]: Imports | WebAssemblyEnv;
-}, 'env'>;
+type ImportsMap = Omit<
+  {
+    readonly [key: string]: Imports | WebAssemblyEnv;
+  },
+  'env'
+>;
 
 export type WebAssemblyImportObject = ImportsMap & {
   readonly env?: WebAssemblyEnv;
-}
+};
 
 export type WebassemblyInstantiateResult<Exports extends object> = {
   readonly instance: WebassemblyInstance<Exports>;
@@ -50,14 +53,14 @@ type ScopedFunction = {
   readonly scope: string;
 };
 
-const getScopedFunctions = (importsMap: ImportsMap): readonly ScopedFunction[] => {
+const getScopedFunctions = (
+  importsMap: ImportsMap
+): readonly ScopedFunction[] => {
   if (!importsMap) return [];
 
-  return Object.entries(importsMap)
-    .flatMap(
-      ([scope, imports]) =>
-        Object.keys(imports).map(functionName => ({scope, functionName}))
-    );
+  return Object.entries(importsMap).flatMap(([scope, imports]) =>
+    Object.keys(imports).map((functionName) => ({ scope, functionName }))
+  );
 };
 
 // https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/instantiate
@@ -67,11 +70,8 @@ export async function instantiate<Exports extends object>(
 ): Promise<WebassemblyInstantiateResult<Exports>> {
   const iid = nanoid();
 
-  const importObject =  maybeImportObject || {};
-  const {
-    env: maybeEnv,
-    ...extras
-  } = importObject;
+  const importObject = maybeImportObject || {};
+  const { env: maybeEnv, ...extras } = importObject;
 
   const memory = maybeEnv?.memory || DEFAULT_MEMORY;
 
@@ -79,8 +79,8 @@ export async function instantiate<Exports extends object>(
 
   const scopedFunctions = getScopedFunctions(extras);
 
-  const rawFunctions = scopedFunctions.map(({functionName}) => functionName);
-  const rawFunctionScopes = scopedFunctions.map(({scope}) => scope);
+  const rawFunctions = scopedFunctions.map(({ functionName }) => functionName);
+  const rawFunctionScopes = scopedFunctions.map(({ scope }) => scope);
 
   const instanceResult = Webassembly.instantiate({
     iid,
