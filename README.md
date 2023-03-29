@@ -61,7 +61,7 @@ It's also possible to declare an `importObject` to receive callbacks from the co
 >
 > Some native modules __require__ the presence of certain function implementations. Without specifying module-specific required dependencies, instantiation will fail.
 
-For example, the [__Circom__](https://github.com/iden3/circom) library converts arithmetic circuits used for generating, evaluating and verifying [__SNARK__](https://consensys.net/blog/developers/introduction-to-zk-snarks/)s are expressed as WASM modules which require the runtime to define an `exceptionHandler` function.
+For example, the [__Circom__](https://github.com/iden3/circom) library converts arithmetic circuits used for generating, evaluating and verifying [__SNARK__](https://consensys.net/blog/developers/introduction-to-zk-snarks/)s are expressed as WASM modules which require the runtime to define an `exceptionHandler` function belonging to the namespace `runtime`.
 
 It's simple to define an `importObject`:
 
