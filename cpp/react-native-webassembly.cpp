@@ -48,10 +48,12 @@ namespace webassembly {
       runtime.load(mod);
 
       std::vector<std::string>::value_type *rawFunctions = a->rawFunctions->data();
+      std::vector<std::string>::value_type *rawFunctionScopes = a->rawFunctionScopes->data();
 
       for (int i = 0; i < a->rawFunctions->size(); ++i) {
         std::string name = rawFunctions[i];
-
+        std::string scope = rawFunctionScopes[i];
+        
         /* TODO: These require implementation. */
 
         /* v(i) */
@@ -65,8 +67,8 @@ namespace webassembly {
         };
 
         // HACK: How to propagate instantiation back to runtime?
-        try { mod.link("*", name.data(), v_i);  continue; } catch (wasm3::error &e) {}
-        try { mod.link("*", name.data(), v_ii); continue; } catch (wasm3::error &e) {}
+        try { mod.link(scope.data(), name.data(), v_i);  continue; } catch (wasm3::error &e) {}
+        try { mod.link(scope.data(), name.data(), v_ii); continue; } catch (wasm3::error &e) {}
 
         throw std::runtime_error(std::string("Unsupported signature for " + name + "."));
       }

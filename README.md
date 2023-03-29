@@ -19,7 +19,7 @@ This package enables [__WebAssembly__](https://webassembly.org/) for [__React Na
    - [__Android__](https://reactnative.dev/docs/new-architecture-library-android)
    - At the time of writing, the new architecture is [__not yet enabled__](https://reactnative.dev/docs/next/the-new-architecture/use-app-template#development-environment) for [__Expo__](https://expo.io).
 2. Install `react-native-webassembly`:
-   
+
    ```shell
    yarn add react-native-webassembly
    ```
@@ -71,7 +71,12 @@ const module = await WebAssembly.instantiate<{
   getFieldNumLen32: () => number;
   // ...
 }>(bufferSource, {
-  imports: {
+  // Declare custom memory implementation.
+  env: {
+    memory: new WebAssembly.Memory({ initial: 32767 }),
+  },
+  // Define the scope of the import functions.
+  runtime: {
     exceptionHandler: (value: number) => console.error(value),
   },
 });

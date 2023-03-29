@@ -12,6 +12,7 @@ struct RNWebassemblyInstantiateParams {
   double      stackSizeInBytes;
     
   std::vector<std::string>* rawFunctions;
+  std::vector<std::string>* rawFunctionScopes;
 };
 
 struct RNWebassemblyInvokeParams {

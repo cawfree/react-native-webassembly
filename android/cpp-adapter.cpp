@@ -12,7 +12,8 @@ Java_com_webassembly_WebassemblyModule_nativeInstantiate(
   jbyteArray bufferSource,
   jlong bufferSourceLength,
   jdouble stackSizeInBytes,
-  jobjectArray rawFunctions
+  jobjectArray rawFunctions,
+  jobjectArray rawFunctionScopes
 ) {
 
   std::string iid_str = std::string(env->GetStringUTFChars(iid, NULL));
@@ -28,12 +29,21 @@ Java_com_webassembly_WebassemblyModule_nativeInstantiate(
     rawFunctionsVec.push_back(std::string(rawString));
   }
 
+  std::vector<std::string> rawFunctionScopesVec;
+
+  for (jsize i = 0; i < env->GetArrayLength(rawFunctionScopes); i++) {
+    jstring str = (jstring) env->GetObjectArrayElement(rawFunctionScopes, i);
+    const char* rawString = env->GetStringUTFChars(str, 0);
+    rawFunctionScopesVec.push_back(std::string(rawString));
+  }
+
   RNWebassemblyInstantiateParams params = {
     iid_str,
     uint8Buffer,
     static_cast<size_t>(bufferSourceLength),
     static_cast<double>(stackSizeInBytes),
-    &rawFunctionsVec
+    &rawFunctionsVec,
+    &rawFunctionScopesVec,
   };
 
   return webassembly::instantiate(&params);

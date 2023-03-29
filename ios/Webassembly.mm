@@ -13,7 +13,12 @@ RCT_EXPORT_MODULE()
     for (const auto& rawFunction : a.rawFunctions())
       rawFunctions.push_back([rawFunction UTF8String]);
     
-    return @(webassembly::instantiate(new RNWebassemblyInstantiateParams{[a.iid() UTF8String], bufferSource, (size_t)data.length, a.stackSizeInBytes(), &rawFunctions}));
+    std::vector<std::string> rawFunctionScopes;
+    
+    for (const auto& rawFunctionScope : a.rawFunctionScopes())
+      rawFunctionScopes.push_back([rawFunctionScope UTF8String]);
+    
+    return @(webassembly::instantiate(new RNWebassemblyInstantiateParams{[a.iid() UTF8String], bufferSource, (size_t)data.length, a.stackSizeInBytes(), &rawFunctions, &rawFunctionScopes}));
 }
 
 - (NSArray<NSString *> *)invoke:(JS::NativeWebassembly::InvokeParams &)a {
@@ -27,7 +32,9 @@ RCT_EXPORT_MODULE()
     
     std::vector<std::string> res;
     
-    @(webassembly::invoke(new RNWebassemblyInvokeParams{[a.iid() UTF8String], [a.func() UTF8String], &args, &res}));
+    NSNumber* result = @(webassembly::invoke(new RNWebassemblyInvokeParams{[a.iid() UTF8String], [a.func() UTF8String], &args, &res}));
+    
+    if (result.intValue != 0) throw std::runtime_error("Failed to invoke.");
     
     NSMutableArray<NSString *> *array = [NSMutableArray arrayWithCapacity:res.size()];
     

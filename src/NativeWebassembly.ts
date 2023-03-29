@@ -6,6 +6,7 @@ export type InstantiateParams = {
   readonly bufferSource: string;
   readonly stackSizeInBytes: number;
   readonly rawFunctions: readonly string[];
+  readonly rawFunctionScopes: readonly string[];
 };
 
 export type InvokeParams = {
