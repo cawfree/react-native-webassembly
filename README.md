@@ -17,7 +17,8 @@ This package enables [__WebAssembly__](https://webassembly.org/) for [__React Na
 1. First, ensure your React Native application supports the [__New Architecture__](https://reactnative.dev/docs/new-architecture-intro):
    - [__iOS__](https://reactnative.dev/docs/new-architecture-library-ios)
    - [__Android__](https://reactnative.dev/docs/new-architecture-library-android)
-   - At the time of writing, the new architecture is [__not yet enabled__](https://reactnative.dev/docs/next/the-new-architecture/use-app-template#development-environment) for [__Expo__](https://expo.io).
+   - At the time of writing, the new architecture is [__not officially supported__](https://reactnative.dev/docs/next/the-new-architecture/use-app-template#development-environment) for [__Expo__](https://expo.io).
+     - But it _can_ work! Thanks [__@ex3ndr__](https://github.com/ex3ndr)!
 2. Install `react-native-webassembly`:
 
    ```shell
