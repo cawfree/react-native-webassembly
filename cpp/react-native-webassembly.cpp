@@ -79,6 +79,7 @@ namespace webassembly {
 
       return 0;
     } catch(wasm3::error &e) {
+      std::cerr << e.what() << std::endl;
       return 1;
     }
   }
