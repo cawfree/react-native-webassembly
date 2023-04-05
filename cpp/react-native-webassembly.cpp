@@ -6,21 +6,12 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <regex>
 
 #include "m3_info.h"
 #include "m3_bind.h"
 #include "m3_env.h"
 #include "wasm3_cpp.h"
-
-int sum(int a, int b)
-{
-  return a + b;
-}
-
-void * ext_memcpy (void* dst, const void* arg, int32_t size)
-{
-  return memcpy(dst, arg, (size_t) size);
-}
 
 char* double_to_c_string(double value)
 {
@@ -28,6 +19,95 @@ char* double_to_c_string(double value)
   stream << std::fixed << std::setprecision(16) << value;
   std::string s = stream.str();
   return s.data();
+}
+
+std::string trim(std::string str) {
+  return std::regex_replace(str, std::regex("\\s+"), "");
+}
+
+std::string transform_parentheses_arguments(std::string input_string) {
+  std::stringstream ss(input_string);
+  std::vector<std::string> contents;
+
+  std::string content;
+    
+  while (std::getline(ss, content, ',')) {
+      
+    content = trim(content);
+      
+    if (content == "i32") {
+      contents.push_back("i");
+    } else if (content == "i64") {
+      contents.push_back("I");
+    } else if (content == "f32") {
+      contents.push_back("f");
+    } else if (content == "f64") {
+      contents.push_back("F");
+    } else {
+      std::cout << "Encountered unexpected argument, " << content << "." << "\n";
+      throw std::runtime_error("Encountered unexpected argument.");
+    }
+  }
+    
+  std::string result;
+
+  for (const auto& s : contents)
+    result += s;
+    
+  return result;
+        
+}
+
+std::string transform_parentheses(IM3Function f)
+{
+  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
+  
+  std::regex  re("\\((.*?)\\)");
+  std::smatch match;
+  
+  std::regex_search(funcTypeSignature, match, re);
+    
+  // TODO: A second match may exist for the return type if using multiple args.
+  std::string inner = match[1];
+    
+  if (inner.length() == 0) return "()";
+    
+  return "(" + transform_parentheses_arguments(inner) + ")";
+}
+
+std::string transform_return(IM3Function f)
+{
+  if (f->funcType->numRets == 0) return "v";
+    
+  if (f->funcType->numRets >  1) {
+    std::cout << "Encountered unexpected number of return types, " << f->funcType->numRets << "." << "\n";
+    throw std::runtime_error("Encountered unexpected number of return types.");
+  }
+    
+  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
+    
+  std::string delimiter = "->";
+  size_t pos = funcTypeSignature.find(delimiter);
+    
+  if (pos == std::string::npos) {
+    std::cout << "Unable to find delimiter in: " << funcTypeSignature << "." << "\n";
+    throw std::runtime_error("Unable to find delimiter.");
+  }
+    
+  std::string returnType = trim(funcTypeSignature.substr(pos + delimiter.length()));
+    
+  if (returnType == "i32") return "i";
+  if (returnType == "i64") return "I";
+  if (returnType == "f32") return "f";
+  if (returnType == "f64") return "F";
+    
+  std::cout << "Encountered unsupported return type \"" << returnType << "\" in " << funcTypeSignature << "." << "\n";
+  throw std::runtime_error("Unsupported return type.");
+}
+
+std::string transform_signature(IM3Function f)
+{
+  return transform_return(f) + transform_parentheses(f);
 }
 
 typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
@@ -60,13 +140,13 @@ namespace webassembly {
           
         const char* moduleName = f->import.moduleUtf8;
         const char* fieldName = f->import.fieldUtf8;
+        
+        std::string signature = transform_signature(f);
           
         // TODO: is this valid?
         if (!moduleName || !fieldName) continue;
           
         M3FuncType * funcType = f->funcType;
-          
-        const char* funcTypeSignature = SPrintFuncTypeSignature(funcType);
           
         t_callback callback = [](
           struct M3Runtime *runtime,
@@ -76,13 +156,10 @@ namespace webassembly {
         ) -> const void * {
           return NULL;
         };
-        
+          
         // TODO: Generate signature.
         // TODO: Remove raw function links.
-        m3_LinkRawFunctionEx(io_module, moduleName, fieldName, "v(i)", callback, NULL);
-        
-        std::cout << "function is " << moduleName << " " << fieldName << " " << funcTypeSignature << "\n";
-        std::cout << "ret types" << funcType->numRets << "and args " << funcType->numArgs << "\n";
+        m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), callback, NULL);
       }
 
 //      std::vector<std::string>::value_type *rawFunctions = a->rawFunctions->data();

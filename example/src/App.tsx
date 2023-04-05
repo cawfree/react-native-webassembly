@@ -7,8 +7,20 @@ export default function App() {
   const helloWorld = useWasmHelloWorld();
   const helloWorldResult =
     'result' in helloWorld ? helloWorld.result : undefined;
+  const helloWorldError =
+    'error' in helloWorld ? helloWorld.error : undefined;
 
-  const { calculateWTNSBin } = useWasmCircomRuntime();
+  const { calculateWTNSBin, error: circomError } = useWasmCircomRuntime();
+
+  React.useEffect(
+    () => void (helloWorldError && console.error(helloWorldError)),
+    [helloWorldError]
+  );
+
+  React.useEffect(
+    () => void (circomError && console.error(circomError)),
+    [circomError]
+  );
 
   React.useEffect(() => {
     if (!helloWorldResult) return;

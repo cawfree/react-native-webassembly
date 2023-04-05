@@ -13,12 +13,12 @@
 u8  ConvertTypeCharToTypeId (char i_code)
 {
     switch (i_code) {
-    case 'v': return c_m3Type_none;
-    case 'i': return c_m3Type_i32;
-    case 'I': return c_m3Type_i64;
-    case 'f': return c_m3Type_f32;
-    case 'F': return c_m3Type_f64;
-    case '*': return c_m3Type_i32;
+        case 'v': return c_m3Type_none;
+        case 'i': return c_m3Type_i32;
+        case 'I': return c_m3Type_i64;
+        case 'f': return c_m3Type_f32;
+        case 'F': return c_m3Type_f64;
+        case '*': return c_m3Type_i32;
     }
     return c_m3Type_unknown;
 }

@@ -137,6 +137,7 @@ export function useWasmCircomRuntime() {
   );
 
   const result = 'result' in wasm ? wasm.result : undefined;
+  const error = 'error' in wasm ? wasm.error : undefined;
 
   const calculateWTNSBin = React.useCallback(
     (input: Circuits_01_Input, sanityCheck: number = 0) => {
@@ -229,5 +230,5 @@ export function useWasmCircomRuntime() {
     [result]
   );
 
-  return { calculateWTNSBin };
+  return { calculateWTNSBin, error };
 }
