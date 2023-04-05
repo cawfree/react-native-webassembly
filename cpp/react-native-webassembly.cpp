@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "m3_info.h"
+#include "m3_bind.h"
 #include "m3_env.h"
 #include "wasm3_cpp.h"
 
@@ -29,8 +30,7 @@ char* double_to_c_string(double value)
   return s.data();
 }
 
-typedef void (*t_v_i)(int32_t);
-typedef void (*t_v_ii)(int32_t, int32_t);
+typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
 
 std::map<std::string, wasm3::runtime> RUNTIMES;
 
@@ -68,35 +68,25 @@ namespace webassembly {
           
         const char* funcTypeSignature = SPrintFuncTypeSignature(funcType);
           
+        t_callback callback = [](
+          struct M3Runtime *runtime,
+          struct M3ImportContext *context,
+          unsigned long long *args,
+          void *userData
+        ) -> const void * {
+          return NULL;
+        };
+        
+        // TODO: Generate signature.
+        // TODO: Remove raw function links.
+        m3_LinkRawFunctionEx(io_module, moduleName, fieldName, "v(i)", callback, NULL);
+        
         std::cout << "function is " << moduleName << " " << fieldName << " " << funcTypeSignature << "\n";
+        std::cout << "ret types" << funcType->numRets << "and args " << funcType->numArgs << "\n";
       }
-        
 
-      std::vector<std::string>::value_type *rawFunctions = a->rawFunctions->data();
-      std::vector<std::string>::value_type *rawFunctionScopes = a->rawFunctionScopes->data();
-
-      for (int i = 0; i < a->rawFunctions->size(); ++i) {
-        std::string name = rawFunctions[i];
-        std::string scope = rawFunctionScopes[i];
-        
-        /* TODO: These require implementation. */
-
-        /* v(i) */
-        t_v_i v_i = [](int32_t p) {
-          throw std::runtime_error(std::string("v(i)"));
-        };
-
-        /* v(ii) */
-        t_v_ii v_ii = [](int32_t p, int32_t q) {
-          throw std::runtime_error(std::string("v(ii)"));
-        };
-
-        // HACK: How to propagate instantiation back to runtime?
-        try { mod.link(scope.data(), name.data(), v_i);  continue; } catch (wasm3::error &e) {}
-        try { mod.link(scope.data(), name.data(), v_ii); continue; } catch (wasm3::error &e) {}
-
-        throw std::runtime_error(std::string("Unsupported signature for " + name + "."));
-      }
+//      std::vector<std::string>::value_type *rawFunctions = a->rawFunctions->data();
+//      std::vector<std::string>::value_type *rawFunctionScopes = a->rawFunctionScopes->data();
 
       mod.compile();
 

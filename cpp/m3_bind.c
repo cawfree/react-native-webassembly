@@ -23,7 +23,6 @@ u8  ConvertTypeCharToTypeId (char i_code)
     return c_m3Type_unknown;
 }
 
-
 M3Result  SignatureToFuncType  (IM3FuncType * o_functionType, ccstr_t i_signature)
 {
     IM3FuncType funcType = NULL;
