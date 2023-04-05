@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { Button, StyleSheet, View } from 'react-native';
 
+import * as WebAssembly from 'react-native-webassembly';
+
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
+import { fetchWasm } from './utils';
 
 export default function App() {
   const helloWorld = useWasmHelloWorld();
@@ -29,6 +32,15 @@ export default function App() {
 
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
+
+  React.useEffect(() => void (async () => {
+    try {
+      /* complex */
+      await WebAssembly.instantiate(await fetchWasm('https://github.com/tact-lang/ton-wasm/raw/main/output/wasm/emulator-emscripten.wasm'), {});
+    } catch (e) {
+      console.error(e);
+    }
+  })(), []);
 
   return (
     <View style={styles.container}>

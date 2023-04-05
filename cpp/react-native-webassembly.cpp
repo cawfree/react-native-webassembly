@@ -140,11 +140,13 @@ namespace webassembly {
           
         const char* moduleName = f->import.moduleUtf8;
         const char* fieldName = f->import.fieldUtf8;
-        
-        std::string signature = transform_signature(f);
           
         // TODO: is this valid?
         if (!moduleName || !fieldName) continue;
+        
+        std::cout << "Linking " << moduleName << ":" << fieldName << "!" << "\n";
+          
+        std::string signature = transform_signature(f);
           
         M3FuncType * funcType = f->funcType;
           
