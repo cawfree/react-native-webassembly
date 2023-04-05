@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include "m3_info.h"
+#include "m3_env.h"
 #include "wasm3_cpp.h"
 
 int sum(int a, int b)
@@ -46,6 +48,29 @@ namespace webassembly {
       wasm3::module mod = env.parse_module(a->bufferSource, a->bufferSourceLength);
 
       runtime.load(mod);
+        
+      // First iterate the functions and manually determine interface.
+      // Then define the appropriate export.
+        
+      IM3Module io_module = mod.m_module.get();
+      
+      for (u32 i = 0; i < io_module->numFunctions; ++i)
+      {
+        const IM3Function f = & io_module->functions [i];
+          
+        const char* moduleName = f->import.moduleUtf8;
+        const char* fieldName = f->import.fieldUtf8;
+          
+        // TODO: is this valid?
+        if (!moduleName || !fieldName) continue;
+          
+        M3FuncType * funcType = f->funcType;
+          
+        const char* funcTypeSignature = SPrintFuncTypeSignature(funcType);
+          
+        std::cout << "function is " << moduleName << " " << fieldName << " " << funcTypeSignature << "\n";
+      }
+        
 
       std::vector<std::string>::value_type *rawFunctions = a->rawFunctions->data();
       std::vector<std::string>::value_type *rawFunctionScopes = a->rawFunctionScopes->data();
