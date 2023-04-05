@@ -143,8 +143,6 @@ namespace webassembly {
           
         // TODO: is this valid?
         if (!moduleName || !fieldName) continue;
-        
-        std::cout << "Linking " << moduleName << ":" << fieldName << "!" << "\n";
           
         std::string signature = transform_signature(f);
           
