@@ -1,14 +1,28 @@
 import * as React from 'react';
 import { Button, StyleSheet, View } from 'react-native';
 
+import * as WebAssembly from 'react-native-webassembly';
+
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
+import { fetchWasm } from './utils';
 
 export default function App() {
   const helloWorld = useWasmHelloWorld();
   const helloWorldResult =
     'result' in helloWorld ? helloWorld.result : undefined;
+  const helloWorldError = 'error' in helloWorld ? helloWorld.error : undefined;
 
-  const { calculateWTNSBin } = useWasmCircomRuntime();
+  const { calculateWTNSBin, error: circomError } = useWasmCircomRuntime();
+
+  React.useEffect(
+    () => void (helloWorldError && console.error(helloWorldError)),
+    [helloWorldError]
+  );
+
+  React.useEffect(
+    () => void (circomError && console.error(circomError)),
+    [circomError]
+  );
 
   React.useEffect(() => {
     if (!helloWorldResult) return;
@@ -17,6 +31,24 @@ export default function App() {
 
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
+
+  React.useEffect(
+    () =>
+      void (async () => {
+        try {
+          /* complex */
+          await WebAssembly.instantiate(
+            await fetchWasm(
+              'https://github.com/tact-lang/ton-wasm/raw/main/output/wasm/emulator-emscripten.wasm'
+            ),
+            {}
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
+    []
+  );
 
   return (
     <View style={styles.container}>

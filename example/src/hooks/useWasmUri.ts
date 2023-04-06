@@ -1,7 +1,8 @@
 import * as React from 'react';
-import axios from 'axios';
 import * as WebAssembly from 'react-native-webassembly';
 import type { WebassemblyInstantiateResult } from 'react-native-webassembly';
+
+import { fetchWasm } from '../utils';
 
 type State<Exports extends object> = Readonly<
   | { loading: true }
@@ -21,16 +22,10 @@ export function useWasmUri<Exports extends object>(
     () =>
       void (async () => {
         try {
-          const { data: bufferSource } = await axios({
-            url: uri,
-            method: 'get',
-            responseType: 'arraybuffer',
-          });
-
           setState({
             loading: false,
             result: await WebAssembly.instantiate<Exports>(
-              bufferSource,
+              await fetchWasm(uri),
               importObject
             ),
           });

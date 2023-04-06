@@ -277,6 +277,8 @@ namespace wasm3 {
           M3Result err = m3_CompileModule(m_module.get());
           detail::check_error(err);
         }
+        
+        std::shared_ptr<M3Module> m_module;
 
     protected:
         friend class environment;
@@ -313,7 +315,6 @@ namespace wasm3 {
         }
 
         std::shared_ptr<M3Environment> m_env;
-        std::shared_ptr<M3Module> m_module;
         bool m_loaded = false;
         std::vector<uint8_t> m_moduleRawData {};
     };

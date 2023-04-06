@@ -83,7 +83,7 @@ const module = await WebAssembly.instantiate<{
 });
 ```
 
-Here, we declare an `exceptionHandler` as `imports` to the compiled module. Without declaring this required dependency, the module would fail to compile.
+Here, we declare an `exceptionHandler` as `runtime` imports to the compiled module. Without declaring this required dependency, the module would fail to compile.
 
 You can find a working implementation of this process in the [__Example App__](example/src/App.tsx).
 
