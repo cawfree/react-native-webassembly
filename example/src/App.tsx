@@ -10,8 +10,7 @@ export default function App() {
   const helloWorld = useWasmHelloWorld();
   const helloWorldResult =
     'result' in helloWorld ? helloWorld.result : undefined;
-  const helloWorldError =
-    'error' in helloWorld ? helloWorld.error : undefined;
+  const helloWorldError = 'error' in helloWorld ? helloWorld.error : undefined;
 
   const { calculateWTNSBin, error: circomError } = useWasmCircomRuntime();
 
@@ -33,14 +32,23 @@ export default function App() {
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
 
-  React.useEffect(() => void (async () => {
-    try {
-      /* complex */
-      await WebAssembly.instantiate(await fetchWasm('https://github.com/tact-lang/ton-wasm/raw/main/output/wasm/emulator-emscripten.wasm'), {});
-    } catch (e) {
-      console.error(e);
-    }
-  })(), []);
+  React.useEffect(
+    () =>
+      void (async () => {
+        try {
+          /* complex */
+          await WebAssembly.instantiate(
+            await fetchWasm(
+              'https://github.com/tact-lang/ton-wasm/raw/main/output/wasm/emulator-emscripten.wasm'
+            ),
+            {}
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
+    []
+  );
 
   return (
     <View style={styles.container}>
