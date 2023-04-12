@@ -3,6 +3,8 @@ import { Button, StyleSheet, View } from 'react-native';
 
 import * as WebAssembly from 'react-native-webassembly';
 
+import Local from './Local.wasm';
+
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
 import { fetchWasm } from './utils';
 
@@ -31,6 +33,24 @@ export default function App() {
 
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
+
+  React.useEffect(
+    () =>
+      void (async () => {
+        try {
+          const localModule = await WebAssembly.instantiate<{
+            readonly add: (a: number, b: number) => number;
+          }>(Local);
+
+          const result = localModule.instance.exports.add(1000, 2000);
+
+          if (result !== 3000) throw new Error('Failed to add. (Local)');
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
+    []
+  );
 
   React.useEffect(
     () =>

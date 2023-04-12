@@ -1,3 +1,4 @@
+const { Image } = require('react-native');
 const { Buffer } = require('buffer');
 const { nanoid } = require('nanoid/non-secure');
 
@@ -63,9 +64,43 @@ const getScopedFunctions = (
   );
 };
 
+const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
+  const maybeAssetSource = Image.resolveAssetSource(moduleId);
+
+  const maybeUri = maybeAssetSource?.uri;
+
+  if (typeof maybeUri !== 'string' || !maybeUri.length)
+    throw new Error(
+      `Expected non-empty string uri, encountered "${String(maybeUri)}".`
+    );
+
+  const base64EncodedString = String(
+    await new Promise(async (resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(await (await fetch(maybeUri)).blob());
+    })
+  );
+
+  const maybeBase64EncodedString = base64EncodedString
+    .substring(base64EncodedString.indexOf(','))
+    .slice(1);
+
+  if (
+    typeof maybeBase64EncodedString !== 'string' ||
+    !maybeBase64EncodedString.length
+  )
+    throw new Error(
+      `Expected non-empty string base64EncodedString, encountered "${maybeBase64EncodedString}".`
+    );
+
+  return maybeBase64EncodedString;
+};
+
 // https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/instantiate
 export async function instantiate<Exports extends object>(
-  bufferSource: Uint8Array | ArrayBuffer,
+  bufferSource: Uint8Array | ArrayBuffer | number,
   maybeImportObject: WebAssemblyImportObject | undefined = undefined
 ): Promise<WebassemblyInstantiateResult<Exports>> {
   const iid = nanoid();
@@ -84,7 +119,10 @@ export async function instantiate<Exports extends object>(
 
   const instanceResult = Webassembly.instantiate({
     iid,
-    bufferSource: Buffer.from(bufferSource).toString('base64'),
+    bufferSource:
+      typeof bufferSource === 'number'
+        ? await fetchRequireAsBase64(bufferSource)
+        : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
     rawFunctions,
     rawFunctionScopes,

@@ -1,6 +1,7 @@
 const path = require('path');
 const escape = require('escape-string-regexp');
 const exclusionList = require('metro-config/src/defaults/exclusionList');
+const metroDefault = require('metro-config/src/defaults/defaults');
 const pak = require('../package.json');
 
 const root = path.resolve(__dirname, '..');
@@ -27,6 +28,8 @@ module.exports = {
       acc[name] = path.join(__dirname, 'node_modules', name);
       return acc;
     }, {}),
+
+    assetExts: metroDefault.assetExts.concat(['wasm']),
   },
 
   transformer: {
