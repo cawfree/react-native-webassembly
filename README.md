@@ -44,7 +44,7 @@ const module = await WebAssembly.instantiate<{
 
 > **Note**
 >
-> To import `.wasm` files directy, you will need to [update your `metro.config.js`](https://github.com/cawfree/react-native-webassembly/blob/d9d950e47277e899371a85cd430336a84d96c369/example/metro.config.js#L32).
+> To import `.wasm` files directly, you will need to [update your `metro.config.js`](https://github.com/cawfree/react-native-webassembly/blob/d9d950e47277e899371a85cd430336a84d96c369/example/metro.config.js#L32).
 
 Alternatively, in the snippet below, we show how to download and instantiate the reference [__Hello World__](https://github.com/torch2424/wasm-by-example) example stored at a remote location:
 
