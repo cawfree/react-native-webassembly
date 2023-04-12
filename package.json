@@ -1,6 +1,6 @@
 {
   "name": "react-native-webassembly",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "⚛️ 🏎 WebAssembly for React Native powered by C++ TurboModules.",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
