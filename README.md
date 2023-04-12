@@ -29,7 +29,24 @@ This package enables [__WebAssembly__](https://webassembly.org/) for [__React Na
 
 The goal of [`react-native-webassembly`](https://github.com/cawfree/react-native-webassembly) is to export a [__browser-equivalent interface__](https://developer.mozilla.org/en-US/docs/WebAssembly) to the WebAssembly API.
 
-To initialize a new WebAssembly module, we'll need to `instantiate` an module using a buffer populated with a `.wasm` binary. In the snippet below, we show how to download and instantiate the reference [__Hello World__](https://github.com/torch2424/wasm-by-example) example:
+To initialize a new WebAssembly module, we'll need to `instantiate` an module using a buffer populated with a `.wasm` binary:
+
+```typescript
+import axios from 'axios';
+import * as WebAssembly from 'react-native-webassembly';
+
+import HelloWorld from './hello-world.wasm';
+
+const module = await WebAssembly.instantiate<{
+  add: (a: number, b: number) => number;
+}>(HelloWorld);
+```
+
+> **Note**
+>
+> To import `.wasm` files directy, you will need to [update your `metro.config.js`](https://github.com/cawfree/react-native-webassembly/blob/d9d950e47277e899371a85cd430336a84d96c369/example/metro.config.js#L32).
+
+Alternatively, in the snippet below, we show how to download and instantiate the reference [__Hello World__](https://github.com/torch2424/wasm-by-example) example stored at a remote location:
 
 ```typescript
 import axios from 'axios';
