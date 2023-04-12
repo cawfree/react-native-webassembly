@@ -34,20 +34,23 @@ export default function App() {
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
 
-  React.useEffect(() => void (async () => {
-    try {
-      const localModule = await WebAssembly.instantiate<{
-        readonly add: (a: number, b: number) => number;
-      }>(Local);
+  React.useEffect(
+    () =>
+      void (async () => {
+        try {
+          const localModule = await WebAssembly.instantiate<{
+            readonly add: (a: number, b: number) => number;
+          }>(Local);
 
-      const result = localModule.instance.exports.add(1000, 2000);
+          const result = localModule.instance.exports.add(1000, 2000);
 
-      if (result !== 3000) throw new Error('Failed to add. (Local)');
-
-    } catch (e) {
-      console.error(e);
-    }
-  })(), []);
+          if (result !== 3000) throw new Error('Failed to add. (Local)');
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
+    []
+  );
 
   React.useEffect(
     () =>

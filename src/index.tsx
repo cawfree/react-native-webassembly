@@ -65,15 +65,14 @@ const getScopedFunctions = (
 };
 
 const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
-
   const maybeAssetSource = Image.resolveAssetSource(moduleId);
 
   const maybeUri = maybeAssetSource?.uri;
 
   if (typeof maybeUri !== 'string' || !maybeUri.length)
-    throw new Error(`Expected non-empty string uri, encountered "${
-      String(maybeUri)
-    }".`);
+    throw new Error(
+      `Expected non-empty string uri, encountered "${String(maybeUri)}".`
+    );
 
   const base64EncodedString = String(
     await new Promise(async (resolve, reject) => {
@@ -84,12 +83,17 @@ const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
     })
   );
 
-  const maybeBase64EncodedString = base64EncodedString.substring(base64EncodedString.indexOf(',')).slice(1);
+  const maybeBase64EncodedString = base64EncodedString
+    .substring(base64EncodedString.indexOf(','))
+    .slice(1);
 
-  if (typeof maybeBase64EncodedString !== 'string' || !maybeBase64EncodedString.length)
-    throw new Error(`Expected non-empty string base64EncodedString, encountered "${
-      maybeBase64EncodedString
-    }".`);
+  if (
+    typeof maybeBase64EncodedString !== 'string' ||
+    !maybeBase64EncodedString.length
+  )
+    throw new Error(
+      `Expected non-empty string base64EncodedString, encountered "${maybeBase64EncodedString}".`
+    );
 
   return maybeBase64EncodedString;
 };
@@ -115,9 +119,10 @@ export async function instantiate<Exports extends object>(
 
   const instanceResult = Webassembly.instantiate({
     iid,
-    bufferSource: typeof bufferSource === 'number'
-      ? await fetchRequireAsBase64(bufferSource)
-      : Buffer.from(bufferSource).toString('base64'),
+    bufferSource:
+      typeof bufferSource === 'number'
+        ? await fetchRequireAsBase64(bufferSource)
+        : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
     rawFunctions,
     rawFunctionScopes,
