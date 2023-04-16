@@ -53,7 +53,11 @@ include_directories(
             ../cpp
 )
 
+find_package(ReactAndroid REQUIRED CONFIG)
+
 target_link_libraries(
         cpp
         ${log-lib}
+        ReactAndroid::jsi
+        android
 )

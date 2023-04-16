@@ -1,92 +1,58 @@
+// @ts-nocheck
 import * as React from 'react';
-import { Button, StyleSheet, View } from 'react-native';
-
-import * as WebAssembly from 'react-native-webassembly';
-
-import Local from './Local.wasm';
-
-import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
-import { fetchWasm } from './utils';
+import {StyleSheet, View, Text, TouchableOpacity} from 'react-native';
+import simpleJsiModule, {isLoaded} from 'react-native-webassembly';
 
 export default function App() {
-  const helloWorld = useWasmHelloWorld();
-  const helloWorldResult =
-    'result' in helloWorld ? helloWorld.result : undefined;
-  const helloWorldError = 'error' in helloWorld ? helloWorld.error : undefined;
-
-  const { calculateWTNSBin, error: circomError } = useWasmCircomRuntime();
-
-  React.useEffect(
-    () => void (helloWorldError && console.error(helloWorldError)),
-    [helloWorldError]
-  );
-
-  React.useEffect(
-    () => void (circomError && console.error(circomError)),
-    [circomError]
-  );
+  const [result, setResult] = React.useState();
+  const [deviceName, setDeviceName] = React.useState();
+  const [getItemValue, setGetItemValue] = React.useState();
 
   React.useEffect(() => {
-    if (!helloWorldResult) return;
-
-    const result = helloWorldResult.instance.exports.add(103, 202);
-
-    if (result !== 305) throw new Error('Failed to add.');
-  }, [helloWorldResult]);
-
-  React.useEffect(
-    () =>
-      void (async () => {
-        try {
-          const localModule = await WebAssembly.instantiate<{
-            readonly add: (a: number, b: number) => number;
-          }>(Local);
-
-          const result = localModule.instance.exports.add(1000, 2000);
-
-          if (result !== 3000) throw new Error('Failed to add. (Local)');
-        } catch (e) {
-          console.error(e);
-        }
-      })(),
-    []
-  );
-
-  React.useEffect(
-    () =>
-      void (async () => {
-        try {
-          /* complex */
-          await WebAssembly.instantiate(
-            await fetchWasm(
-              'https://github.com/tact-lang/ton-wasm/raw/main/output/wasm/emulator-emscripten.wasm'
-            ),
-            {}
-          );
-        } catch (e) {
-          console.error(e);
-        }
-      })(),
-    []
-  );
+    setResult(simpleJsiModule.helloWorld());
+  }, []);
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Circom"
-        onPress={() => {
-          try {
-            // https://github.com/cawfree/zk-starter
-            const witnessBuffer = calculateWTNSBin({ a: 3, b: 11 });
-            console.log(JSON.stringify(witnessBuffer));
-          } catch (e) {
-            // Ignore instantiation errors.
-            if (String(e) === 'Not ready to calculate.') return;
+      <Text>Bindings Installed: {isLoaded().toString()}</Text>
+      <Text>Result: {result}</Text>
 
-            console.error(e);
-          }
+      <TouchableOpacity
+        onPress={() => {
+          let value = simpleJsiModule.getDeviceName();
+          setDeviceName(value);
         }}
-      />
+        style={styles.button}>
+        <Text style={styles.buttonTxt}>Device Name: {deviceName}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => {
+          simpleJsiModule.setItem('helloworld', 'Hello World');
+        }}
+        style={styles.button}>
+        <Text style={styles.buttonTxt}>setItem: "Hello World"</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => {
+          setGetItemValue(simpleJsiModule.getItem('helloworld'));
+        }}
+        style={styles.button}>
+        <Text style={styles.buttonTxt}>getItem: {getItemValue}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => {
+          simpleJsiModule.foo((error, result) => {
+            console.log('error:', error, 'result:', result);
+          });
+        }}
+        style={styles.button}>
+        <Text style={styles.buttonTxt}>
+          Async callback (Runs on seperate thread in c++)
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -96,5 +62,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  box: {
+    width: 60,
+    height: 60,
+    marginVertical: 20,
+  },
+  button: {
+    width: '95%',
+    alignSelf: 'center',
+    height: 40,
+    backgroundColor: 'green',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5,
+    marginVertical: 10,
+  },
+  buttonTxt: {
+    color: 'white',
   },
 });
