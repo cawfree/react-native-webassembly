@@ -7,32 +7,25 @@ import { NativeModules } from 'react-native';
 // https://github.com/mrousavy/react-native-mmkv
 
 //@ts-ignore
-const simpleJsiModule: {
-  helloWorld(): string;
-  multiplyWithCallback(
-    x: number,
-    y: number,
-    callback: (z: number) => void
-  ): void;
-  multiply(x: number, y: number): number;
-  getDeviceName(): string;
-  setItem(key: string, value: string): boolean;
-  getItem(key: string): string;
-  foo(callback:(error:string | undefined,value:string | undefined) => void):void
+const reactNativeWebAssembly: {
+  readonly RNWebassembly_instantiate: () => string;
+  //multiplyWithCallback(
+  //  x: number,
+  //  y: number,
+  //  callback: (z: number) => void
+  //): void;
+  //multiply(x: number, y: number): number;
+  //getDeviceName(): string;
+  //setItem(key: string, value: string): boolean;
+  //getItem(key: string): string;
+  //foo(callback:(error:string | undefined,value:string | undefined) => void):void
   //@ts-ignore
 } = global;
 
-export function isLoaded() {
-  return typeof simpleJsiModule.getItem === 'function';
-}
+if (typeof reactNativeWebAssembly.RNWebassembly_instantiate !== 'function' && !NativeModules.Webassembly?.install?.())
+  throw new Error('Unable to bind Webassembly to React Native JSI.');
 
-if (!isLoaded()) {
-  const result = NativeModules.Webassembly?.install();
-
-  if (!result || !isLoaded()) throw new Error('JSI bindings were not installed for: SimpleJsi Module');
-}
-
-export default simpleJsiModule;
+export const instantiate = reactNativeWebAssembly.RNWebassembly_instantiate;
 
 //const { Image } = require('react-native');
 //const { Buffer } = require('buffer');
