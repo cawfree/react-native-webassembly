@@ -2,9 +2,151 @@
 
 #include <jsi/jsi.h>
 #include <thread>
+#include <map>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <regex>
+
+#include "m3_info.h"
+#include "m3_bind.h"
+#include "m3_env.h"
+#include "wasm3_cpp.h"
 
 using namespace facebook::jsi;
 using namespace std;
+
+// https://stackoverflow.com/a/34571089
+static std::string base64_decode(const std::string &in) {
+
+    std::string out;
+
+    std::vector<int> T(256,-1);
+    for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+
+    int val=0, valb=-8;
+    for (unsigned char c : in) {
+        if (T[c] == -1) break;
+        val = (val << 6) + T[c];
+        valb += 6;
+        if (valb >= 0) {
+            out.push_back(char((val>>valb)&0xFF));
+            valb -= 8;
+        }
+    }
+    return out;
+}
+
+static void stringToBytes(const char* str, unsigned char* bytes) {
+    size_t len = strlen(str);
+    for (size_t i = 0; i < len; ++i) {
+        bytes[i] = static_cast<unsigned char>(str[i]);
+    }
+}
+
+
+char* double_to_c_string(double value)
+{
+  std::stringstream stream;
+  stream << std::fixed << std::setprecision(16) << value;
+  std::string s = stream.str();
+  return s.data();
+}
+
+static std::string trim(std::string str) {
+  return std::regex_replace(str, std::regex("\\s+"), "");
+}
+
+static std::string transform_parentheses_arguments(std::string input_string) {
+  std::stringstream ss(input_string);
+  std::vector<std::string> contents;
+
+  std::string content;
+
+  while (std::getline(ss, content, ',')) {
+
+    content = trim(content);
+
+    if (content == "i32") {
+      contents.push_back("i");
+    } else if (content == "i64") {
+      contents.push_back("I");
+    } else if (content == "f32") {
+      contents.push_back("f");
+    } else if (content == "f64") {
+      contents.push_back("F");
+    } else {
+      std::cout << "Encountered unexpected argument, " << content << "." << "\n";
+      throw std::runtime_error("Encountered unexpected argument.");
+    }
+  }
+
+  std::string result;
+
+  for (const auto& s : contents)
+    result += s;
+
+  return result;
+
+}
+
+static std::string transform_parentheses(IM3Function f)
+{
+  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
+
+  std::regex  re("\\((.*?)\\)");
+  std::smatch match;
+
+  std::regex_search(funcTypeSignature, match, re);
+
+  // TODO: A second match may exist for the return type if using multiple args.
+  std::string inner = match[1];
+
+  if (inner.length() == 0) return "()";
+
+  return "(" + transform_parentheses_arguments(inner) + ")";
+}
+
+static std::string transform_return(IM3Function f)
+{
+  if (f->funcType->numRets == 0) return "v";
+
+  if (f->funcType->numRets >  1) {
+    std::cout << "Encountered unexpected number of return types, " << f->funcType->numRets << "." << "\n";
+    throw std::runtime_error("Encountered unexpected number of return types.");
+  }
+
+  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
+
+  std::string delimiter = "->";
+  size_t pos = funcTypeSignature.find(delimiter);
+
+  if (pos == std::string::npos) {
+    std::cout << "Unable to find delimiter in: " << funcTypeSignature << "." << "\n";
+    throw std::runtime_error("Unable to find delimiter.");
+  }
+
+  std::string returnType = trim(funcTypeSignature.substr(pos + delimiter.length()));
+
+  if (returnType == "i32") return "i";
+  if (returnType == "i64") return "I";
+  if (returnType == "f32") return "f";
+  if (returnType == "f64") return "F";
+
+  std::cout << "Encountered unsupported return type \"" << returnType << "\" in " << funcTypeSignature << "." << "\n";
+  throw std::runtime_error("Unsupported return type.");
+}
+
+static std::string transform_signature(IM3Function f)
+{
+  return transform_return(f) + transform_parentheses(f);
+}
+
+typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
+
+std::map<std::string, wasm3::runtime> RUNTIMES;
 
 namespace webassembly {
 
@@ -15,9 +157,69 @@ void install(Runtime &jsiRuntime) {
     PropNameID::forAscii(jsiRuntime, "RNWebassembly_instantiate"),
     0,
     [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
-      string helloworld = "RNWebassembly_instantiate";
-      return Value(runtime, String::createFromUtf8(runtime, helloworld));
-  });
+      
+      facebook::jsi::Object params = arguments->getObject(runtime);
+        
+      String iid = params.getProperty(runtime, "iid").asString(runtime);
+      String bufferSource = params.getProperty(runtime, "bufferSource").asString(runtime);
+      uint32_t stackSizeInBytes = (uint32_t)params.getProperty(runtime, "stackSizeInBytes").asNumber();
+        
+      /* Wasm module can also be loaded from an array */
+      try {
+        wasm3::environment env;
+        wasm3::runtime     m3runtime = env.new_runtime(stackSizeInBytes);
+        
+        std::string decoded = base64_decode(std::string(bufferSource.utf8(runtime)));
+          
+          
+        unsigned char buffer[decoded.length()];
+        memcpy(buffer, decoded.data(), decoded.length());
+      
+        wasm3::module mod = env.parse_module(buffer, decoded.length());
+
+        m3runtime.load(mod);
+
+        IM3Module io_module = mod.m_module.get();
+
+        for (u32 i = 0; i < io_module->numFunctions; ++i)
+        {
+          const IM3Function f = & io_module->functions [i];
+
+          const char* moduleName = f->import.moduleUtf8;
+          const char* fieldName = f->import.fieldUtf8;
+
+          // TODO: is this valid?
+          if (!moduleName || !fieldName) continue;
+
+          std::string signature = transform_signature(f);
+
+//          M3FuncType * funcType = f->funcType;
+
+          t_callback callback = [](
+            struct M3Runtime *runtime,
+            struct M3ImportContext *context,
+            unsigned long long *args,
+            void *userData
+          ) -> const void * {
+            return NULL;
+          };
+
+          // TODO: Generate signature.
+          // TODO: Remove raw function links.
+          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), callback, NULL);
+        }
+
+        mod.compile();
+          
+        RUNTIMES.insert(std::make_pair(std::string(iid.utf8(runtime)), m3runtime));
+      
+        return Value(0);
+      } catch(wasm3::error &e) {
+        std::cerr << e.what() << std::endl;
+        return Value(1);
+      }
+    }
+  );
 
   jsiRuntime.global().setProperty(jsiRuntime, "RNWebassembly_instantiate", move(RNWebassembly_instantiate));
 
@@ -82,20 +284,6 @@ void install(Runtime &jsiRuntime) {
   }
 }
 
-//#include "react-native-webassembly.h"
-//
-//#include <map>
-//#include <cstdio>
-//#include <cstring>
-//#include <fstream>
-//#include <iomanip>
-//#include <sstream>
-//#include <regex>
-//
-//#include "m3_info.h"
-//#include "m3_bind.h"
-//#include "m3_env.h"
-//#include "wasm3_cpp.h"
 //
 //char* double_to_c_string(double value)
 //{
@@ -109,94 +297,6 @@ void install(Runtime &jsiRuntime) {
 //  return std::regex_replace(str, std::regex("\\s+"), "");
 //}
 //
-//std::string transform_parentheses_arguments(std::string input_string) {
-//  std::stringstream ss(input_string);
-//  std::vector<std::string> contents;
-//
-//  std::string content;
-//
-//  while (std::getline(ss, content, ',')) {
-//
-//    content = trim(content);
-//
-//    if (content == "i32") {
-//      contents.push_back("i");
-//    } else if (content == "i64") {
-//      contents.push_back("I");
-//    } else if (content == "f32") {
-//      contents.push_back("f");
-//    } else if (content == "f64") {
-//      contents.push_back("F");
-//    } else {
-//      std::cout << "Encountered unexpected argument, " << content << "." << "\n";
-//      throw std::runtime_error("Encountered unexpected argument.");
-//    }
-//  }
-//
-//  std::string result;
-//
-//  for (const auto& s : contents)
-//    result += s;
-//
-//  return result;
-//
-//}
-//
-//std::string transform_parentheses(IM3Function f)
-//{
-//  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
-//
-//  std::regex  re("\\((.*?)\\)");
-//  std::smatch match;
-//
-//  std::regex_search(funcTypeSignature, match, re);
-//
-//  // TODO: A second match may exist for the return type if using multiple args.
-//  std::string inner = match[1];
-//
-//  if (inner.length() == 0) return "()";
-//
-//  return "(" + transform_parentheses_arguments(inner) + ")";
-//}
-//
-//std::string transform_return(IM3Function f)
-//{
-//  if (f->funcType->numRets == 0) return "v";
-//
-//  if (f->funcType->numRets >  1) {
-//    std::cout << "Encountered unexpected number of return types, " << f->funcType->numRets << "." << "\n";
-//    throw std::runtime_error("Encountered unexpected number of return types.");
-//  }
-//
-//  std::string funcTypeSignature = std::string(SPrintFuncTypeSignature(f->funcType));
-//
-//  std::string delimiter = "->";
-//  size_t pos = funcTypeSignature.find(delimiter);
-//
-//  if (pos == std::string::npos) {
-//    std::cout << "Unable to find delimiter in: " << funcTypeSignature << "." << "\n";
-//    throw std::runtime_error("Unable to find delimiter.");
-//  }
-//
-//  std::string returnType = trim(funcTypeSignature.substr(pos + delimiter.length()));
-//
-//  if (returnType == "i32") return "i";
-//  if (returnType == "i64") return "I";
-//  if (returnType == "f32") return "f";
-//  if (returnType == "f64") return "F";
-//
-//  std::cout << "Encountered unsupported return type \"" << returnType << "\" in " << funcTypeSignature << "." << "\n";
-//  throw std::runtime_error("Unsupported return type.");
-//}
-//
-//std::string transform_signature(IM3Function f)
-//{
-//  return transform_return(f) + transform_parentheses(f);
-//}
-//
-//typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
-//
-//std::map<std::string, wasm3::runtime> RUNTIMES;
 //
 //namespace webassembly {
 //  double instantiate(RNWebassemblyInstantiateParams* a) {
