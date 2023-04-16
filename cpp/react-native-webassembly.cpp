@@ -158,7 +158,7 @@ void install(Runtime &jsiRuntime) {
     0,
     [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
       
-      facebook::jsi::Object params = arguments->getObject(runtime);
+      Object params = arguments->getObject(runtime);
         
       String iid = params.getProperty(runtime, "iid").asString(runtime);
       String bufferSource = params.getProperty(runtime, "bufferSource").asString(runtime);
@@ -169,10 +169,9 @@ void install(Runtime &jsiRuntime) {
         wasm3::environment env;
         wasm3::runtime     m3runtime = env.new_runtime(stackSizeInBytes);
         
-        std::string decoded = base64_decode(std::string(bufferSource.utf8(runtime)));
-          
-          
-        unsigned char buffer[decoded.length()];
+        std::string decoded = base64_decode(bufferSource.utf8(runtime));
+        
+        unsigned char* buffer = new unsigned char[decoded.length()];
         memcpy(buffer, decoded.data(), decoded.length());
       
         wasm3::module mod = env.parse_module(buffer, decoded.length());
@@ -211,7 +210,7 @@ void install(Runtime &jsiRuntime) {
 
         mod.compile();
           
-        RUNTIMES.insert(std::make_pair(std::string(iid.utf8(runtime)), m3runtime));
+        RUNTIMES.insert(std::make_pair(iid.utf8(runtime), m3runtime));
       
         return Value(0);
       } catch(wasm3::error &e) {
@@ -222,6 +221,63 @@ void install(Runtime &jsiRuntime) {
   );
 
   jsiRuntime.global().setProperty(jsiRuntime, "RNWebassembly_instantiate", move(RNWebassembly_instantiate));
+  
+  auto RNWebassembly_invoke = Function::createFromHostFunction(
+    jsiRuntime,
+    PropNameID::forAscii(jsiRuntime, "RNWebassembly_invoke"),
+    0,
+    [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
+      
+      Object params = arguments->getObject(runtime);
+        
+      String iid  = params.getProperty(runtime, "iid").asString(runtime);
+      String func = params.getProperty(runtime, "func").asString(runtime);
+      Array  args = params.getProperty(runtime, "args").asObject(runtime).asArray(runtime);
+        
+      std::map<std::string, wasm3::runtime>::iterator it = RUNTIMES.find(iid.utf8(runtime));
+      
+      if (it == RUNTIMES.end()) throw std::runtime_error("Unable to invoke.");
+      
+      wasm3::runtime  m3runtime = it->second;
+      wasm3::function fn        = m3runtime.find_function(func.utf8(runtime).data());
+        
+      std::vector<std::string> vec;
+      std::vector<std::string> res;
+      
+      for (uint32_t i = 0; i < fn.GetArgCount(); i += 1)
+        vec.push_back(args.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime));
+        
+      if (fn.GetRetCount() > 1) throw std::runtime_error("Unable to invoke.");
+      
+      if (fn.GetRetCount() == 0) {
+        fn.call_argv<int>(vec);
+        return 0;
+      }
+      
+      M3ValueType type = fn.GetRetType(0);
+      
+      if (type == c_m3Type_i32) {
+        res.push_back(std::to_string(fn.call_argv<int32_t>(vec)));
+      } else if (type == c_m3Type_i64) {
+        res.push_back(std::to_string(fn.call_argv<int64_t>(vec)));
+      } else if (type == c_m3Type_f32) {
+        res.push_back(std::string(double_to_c_string(fn.call_argv<float>(vec))));
+      } else if (type == c_m3Type_f64) {
+        res.push_back(std::string(double_to_c_string(fn.call_argv<double>(vec))));
+      } else {
+        throw std::runtime_error("Failed to invoke.");
+      }
+        
+      auto array = Array(runtime, res.size());
+        
+      for (uint32_t i = 0; i < fn.GetRetCount(); i += 1)
+        array.setValueAtIndex(runtime, i, res[i]);
+        
+      return array;
+    }
+  );
+
+  jsiRuntime.global().setProperty(jsiRuntime, "RNWebassembly_invoke", move(RNWebassembly_invoke));
 
 //    auto multiply = Function::createFromHostFunction(jsiRuntime,
 //                                                     PropNameID::forAscii(jsiRuntime,

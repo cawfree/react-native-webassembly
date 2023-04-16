@@ -8,22 +8,23 @@ type InstantiateParams = {
   readonly stackSizeInBytes: number;
 };
 
-//type InvokeParams = {
-//  readonly iid: string;
-//  readonly func: string;
-//  readonly args: readonly string[];
-//};
+type InvokeParams = {
+  readonly iid: string;
+  readonly func: string;
+  readonly args: readonly string[];
+};
 
-//@ts-ignore
+// @ts-expect-error synthesized
 const reactNativeWebAssembly: {
-  readonly RNWebassembly_instantiate:
-    (params: InstantiateParams) => number;
+  readonly RNWebassembly_instantiate: (params: InstantiateParams) => number;
+  readonly RNWebassembly_invoke: (params: InvokeParams) => readonly string[];
 } = global;
 
-if (typeof reactNativeWebAssembly.RNWebassembly_instantiate !== 'function' && !NativeModules.Webassembly?.install?.())
+if (
+  typeof reactNativeWebAssembly.RNWebassembly_instantiate !== 'function' &&
+  !NativeModules.Webassembly?.install?.()
+)
   throw new Error('Unable to bind Webassembly to React Native JSI.');
-
-//export const instantiate = reactNativeWebAssembly.RNWebassembly_instantiate;
 
 export type WebassemblyInstance<Exports extends object> = {
   readonly exports: Exports;
@@ -67,21 +68,6 @@ export type WebAssemblyImportObject = ImportsMap & {
 export type WebassemblyInstantiateResult<Exports extends object> = {
   readonly instance: WebassemblyInstance<Exports>;
 };
-
-//type ScopedFunction = {
-//  readonly functionName: string;
-//  readonly scope: string;
-//};
-
-//const getScopedFunctions = (
-//  importsMap: ImportsMap
-//): readonly ScopedFunction[] => {
-//  if (!importsMap) return [];
-//
-//  return Object.entries(importsMap).flatMap(([scope, imports]) =>
-//    Object.keys(imports).map((functionName) => ({ scope, functionName }))
-//  );
-//};
 
 const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
   const maybeAssetSource = Image.resolveAssetSource(moduleId);
@@ -131,10 +117,6 @@ export async function instantiate<Exports extends object>(
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
-  //const scopedFunctions = getScopedFunctions(extras);
-  //const rawFunctions = scopedFunctions.map(({ functionName }) => functionName);
-  //const rawFunctionScopes = scopedFunctions.map(({ scope }) => scope);
-
   const instanceResult = reactNativeWebAssembly.RNWebassembly_instantiate({
     iid,
     bufferSource:
@@ -142,14 +124,10 @@ export async function instantiate<Exports extends object>(
         ? await fetchRequireAsBase64(bufferSource)
         : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
-    //rawFunctions,
-    //rawFunctionScopes,
   });
 
   if (instanceResult !== 0)
-    throw new Error(`Failed to instantiate WebAssembly. (${
-      instanceResult
-    })`);
+    throw new Error(`Failed to instantiate WebAssembly. (${instanceResult})`);
 
   const exports = new Proxy({} as Exports, {
     get(_, func) {
@@ -157,20 +135,21 @@ export async function instantiate<Exports extends object>(
         throw new Error(`Expected string, encountered ${typeof func}.`);
 
       return (...args: readonly number[]) => {
-        throw new Error("Don't know how to invoke.");
-        //const res = Webassembly.invoke({
-        //  iid,
-        //  func,
-        //  args: args.map((e) => e.toString()),
-        //});
+        const res = reactNativeWebAssembly.RNWebassembly_invoke({
+          iid,
+          func,
+          args: args.map((e) => e.toString()),
+        });
 
-        //if (!res.length) return undefined;
+        if (!res.length) return undefined;
 
-        //const num = res.map(parseFloat);
+        const num = res.map(parseFloat);
 
-        //if (res.length !== 1) return num;
+        // TODO: This is incorrect. We need to check if the return type is truly
+        //       a scalar or not.
+        if (res.length !== 1) return num;
 
-        //return num[0];
+        return num[0];
       };
     },
   });
