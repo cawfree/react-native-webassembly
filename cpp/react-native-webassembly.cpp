@@ -10,13 +10,50 @@
 #include <sstream>
 #include <regex>
 
-#include "m3_info.h"
+//#include "m3_info.h"
 #include "m3_bind.h"
 #include "m3_env.h"
 #include "wasm3_cpp.h"
 
 using namespace facebook::jsi;
 using namespace std;
+
+// TODO: Copied from m3_info, use alternative.
+cstr_t  GetTypeName  (u8 i_m3Type)
+{
+    if (i_m3Type < 5)
+        return c_waTypes [i_m3Type];
+    else
+        return "?";
+}
+
+// TODO: Copied from m3_info, use alternative.
+cstr_t  SPrintFuncTypeSignature  (IM3FuncType i_funcType)
+{
+    static char string [256];
+
+    sprintf (string, "(");
+
+    for (u32 i = 0; i < i_funcType->numArgs; ++i)
+    {
+        if (i != 0)
+            strcat (string, ", ");
+
+        strcat (string, GetTypeName (d_FuncArgType(i_funcType, i)));
+    }
+
+    strcat (string, ") -> ");
+
+    for (u32 i = 0; i < i_funcType->numRets; ++i)
+    {
+        if (i != 0)
+            strcat (string, ", ");
+
+        strcat (string, GetTypeName (d_FuncRetType(i_funcType, i)));
+    }
+
+    return string;
+}
 
 // https://stackoverflow.com/a/34571089
 static std::string base64_decode(const std::string &in) {
@@ -38,14 +75,6 @@ static std::string base64_decode(const std::string &in) {
     }
     return out;
 }
-
-static void stringToBytes(const char* str, unsigned char* bytes) {
-    size_t len = strlen(str);
-    for (size_t i = 0; i < len; ++i) {
-        bytes[i] = static_cast<unsigned char>(str[i]);
-    }
-}
-
 
 char* double_to_c_string(double value)
 {
@@ -157,23 +186,23 @@ void install(Runtime &jsiRuntime) {
     PropNameID::forAscii(jsiRuntime, "RNWebassembly_instantiate"),
     0,
     [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
-      
+
       Object params = arguments->getObject(runtime);
-        
+
       String iid = params.getProperty(runtime, "iid").asString(runtime);
       String bufferSource = params.getProperty(runtime, "bufferSource").asString(runtime);
       uint32_t stackSizeInBytes = (uint32_t)params.getProperty(runtime, "stackSizeInBytes").asNumber();
-        
+
       /* Wasm module can also be loaded from an array */
       try {
         wasm3::environment env;
         wasm3::runtime     m3runtime = env.new_runtime(stackSizeInBytes);
-        
+
         std::string decoded = base64_decode(bufferSource.utf8(runtime));
-        
+
         unsigned char* buffer = new unsigned char[decoded.length()];
         memcpy(buffer, decoded.data(), decoded.length());
-      
+
         wasm3::module mod = env.parse_module(buffer, decoded.length());
 
         m3runtime.load(mod);
@@ -203,15 +232,16 @@ void install(Runtime &jsiRuntime) {
             return NULL;
           };
 
+          // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), callback, NULL);
+          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), NULL, NULL);
         }
 
         mod.compile();
-          
+
         RUNTIMES.insert(std::make_pair(iid.utf8(runtime), m3runtime));
-      
+
         return Value(0);
       } catch(wasm3::error &e) {
         std::cerr << e.what() << std::endl;
@@ -221,41 +251,41 @@ void install(Runtime &jsiRuntime) {
   );
 
   jsiRuntime.global().setProperty(jsiRuntime, "RNWebassembly_instantiate", move(RNWebassembly_instantiate));
-  
+
   auto RNWebassembly_invoke = Function::createFromHostFunction(
     jsiRuntime,
     PropNameID::forAscii(jsiRuntime, "RNWebassembly_invoke"),
     0,
     [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
-      
+
       Object params = arguments->getObject(runtime);
-        
+
       String iid  = params.getProperty(runtime, "iid").asString(runtime);
       String func = params.getProperty(runtime, "func").asString(runtime);
       Array  args = params.getProperty(runtime, "args").asObject(runtime).asArray(runtime);
-        
+
       std::map<std::string, wasm3::runtime>::iterator it = RUNTIMES.find(iid.utf8(runtime));
-      
+
       if (it == RUNTIMES.end()) throw std::runtime_error("Unable to invoke.");
-      
+
       wasm3::runtime  m3runtime = it->second;
       wasm3::function fn        = m3runtime.find_function(func.utf8(runtime).data());
-        
+
       std::vector<std::string> vec;
       std::vector<std::string> res;
-      
+
       for (uint32_t i = 0; i < fn.GetArgCount(); i += 1)
         vec.push_back(args.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime));
-        
+
       if (fn.GetRetCount() > 1) throw std::runtime_error("Unable to invoke.");
-      
+
       if (fn.GetRetCount() == 0) {
         fn.call_argv<int>(vec);
         return 0;
       }
-      
+
       M3ValueType type = fn.GetRetType(0);
-      
+
       if (type == c_m3Type_i32) {
         res.push_back(std::to_string(fn.call_argv<int32_t>(vec)));
       } else if (type == c_m3Type_i64) {
@@ -267,12 +297,12 @@ void install(Runtime &jsiRuntime) {
       } else {
         throw std::runtime_error("Failed to invoke.");
       }
-        
+
       auto array = Array(runtime, res.size());
-        
+
       for (uint32_t i = 0; i < fn.GetRetCount(); i += 1)
         array.setValueAtIndex(runtime, i, res[i]);
-        
+
       return array;
     });
 
