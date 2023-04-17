@@ -7,7 +7,6 @@ namespace facebook {
   }
 }
 
-
 namespace webassembly {
   void install(facebook::jsi::Runtime &jsiRuntime);
 }

@@ -179,6 +179,8 @@ const void * myImportFunction(struct M3Runtime * runtime, struct M3ImportContext
     return NULL;
 }
 
+typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
+
 namespace webassembly {
 
 void install(Runtime &jsiRuntime) {
@@ -225,19 +227,19 @@ void install(Runtime &jsiRuntime) {
 
 //          M3FuncType * funcType = f->funcType;
 
-//          t_callback callback = [](
-//            struct M3Runtime *runtime,
-//            struct M3ImportContext *context,
-//            unsigned long long *args,
-//            void *userData
-//          ) -> const void * {
-//            return NULL;
-//          };
+          t_callback callback = [](
+            struct M3Runtime *runtime,
+            struct M3ImportContext *context,
+            unsigned long long *args,
+            void *userData
+          ) -> const void * {
+            return NULL;
+          };
 
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), myImportFunction, NULL);
+          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), (M3RawCall)callback, NULL);
         }
 
         mod.compile();
