@@ -173,9 +173,11 @@ static std::string transform_signature(IM3Function f)
   return transform_return(f) + transform_parentheses(f);
 }
 
-typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
-
 std::map<std::string, wasm3::runtime> RUNTIMES;
+
+const void * myImportFunction(struct M3Runtime * runtime, struct M3ImportContext * context, unsigned long long * args, void * userData) {
+    return NULL;
+}
 
 namespace webassembly {
 
@@ -223,19 +225,19 @@ void install(Runtime &jsiRuntime) {
 
 //          M3FuncType * funcType = f->funcType;
 
-          t_callback callback = [](
-            struct M3Runtime *runtime,
-            struct M3ImportContext *context,
-            unsigned long long *args,
-            void *userData
-          ) -> const void * {
-            return NULL;
-          };
+//          t_callback callback = [](
+//            struct M3Runtime *runtime,
+//            struct M3ImportContext *context,
+//            unsigned long long *args,
+//            void *userData
+//          ) -> const void * {
+//            return NULL;
+//          };
 
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), NULL, NULL);
+          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), myImportFunction, NULL);
         }
 
         mod.compile();
