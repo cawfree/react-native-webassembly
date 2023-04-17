@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.9.0)
 
-set (CMAKE_VERBOSE_MAKEFILE ON)
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX11_EXTENSION_COMPILE_OPTION "-std=c++17")
+set (BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_CXX_STANDARD 17)
 
 find_library(log-lib log)
 
@@ -53,7 +53,18 @@ include_directories(
             ../cpp
 )
 
+set_target_properties(
+        cpp PROPERTIES
+        CXX_STANDARD 17
+        CXX_EXTENSIONS OFF
+        POSITION_INDEPENDENT_CODE ON
+)
+
+find_package(ReactAndroid REQUIRED CONFIG)
+
 target_link_libraries(
         cpp
         ${log-lib}
+        ReactAndroid::jsi
+        android
 )
