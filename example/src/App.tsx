@@ -3,7 +3,8 @@ import { Button, StyleSheet, View } from 'react-native';
 
 import * as WebAssembly from 'react-native-webassembly';
 
-import Local from './Local.wasm';
+import LocalHello from './sources/Local.Hello.wasm';
+import LocalCallback from './sources/Local.Callback.wasm';
 
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
 import { fetchWasm } from './utils';
@@ -40,7 +41,7 @@ export default function App() {
         try {
           const localModule = await WebAssembly.instantiate<{
             readonly add: (a: number, b: number) => number;
-          }>(Local);
+          }>(LocalHello);
 
           const result = localModule.instance.exports.add(1000, 2000);
 
@@ -67,6 +68,33 @@ export default function App() {
           console.error(e);
         }
       })(),
+    []
+  );
+
+  React.useEffect(
+    () => void (async () => {
+      try {
+        const localCallback = await WebAssembly.instantiate<{
+          readonly callBackFunction: (a: number) => number;
+        }>(
+          LocalCallback,
+          {
+            runtime: {
+              callback: (a: number): number => {
+                console.warn('ici');
+                return 2;
+              },
+            },
+          }
+        );
+
+        const result = localCallback.instance.exports.callBackFunction(42);
+        console.warn(result);
+      } catch (e) {
+        console.error(e);
+      }
+
+    })(),
     []
   );
 

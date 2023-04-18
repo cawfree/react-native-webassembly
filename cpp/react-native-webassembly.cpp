@@ -233,6 +233,7 @@ void install(Runtime &jsiRuntime) {
             unsigned long long *args,
             void *userData
           ) -> const void * {
+            std::cout << "did try callback " << m3_GetFunctionName(context->function) << "\n";
             return NULL;
           };
 
