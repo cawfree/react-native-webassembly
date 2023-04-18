@@ -81,8 +81,8 @@ export default function App() {
           {
             runtime: {
               callback: (a: number): number => {
-                console.warn('ici');
-                return 2;
+                console.warn('Hey, got', a, '!');
+                return a * 2;
               },
             },
           }

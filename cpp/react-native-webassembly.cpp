@@ -11,7 +11,6 @@
 #include <regex>
 #include <future>
 
-//#include "m3_info.h"
 #include "m3_bind.h"
 #include "m3_env.h"
 #include "wasm3_cpp.h"
@@ -76,30 +75,6 @@ static std::string base64_decode(const std::string &in) {
     }
     return out;
 }
-
-//std::string int_to_string(int x) {
-//    std::stringstream ss;
-//    ss << x;
-//    return ss.str();
-//}
-
-//std::string to_string(long long x) {
-//    std::stringstream ss;
-//    ss << x;
-//    return ss.str();
-//}
-//
-//std::string to_string(float x) {
-//    std::stringstream ss;
-//    ss << x;
-//    return ss.str();
-//}
-//
-//std::string to_string(double x) {
-//    std::stringstream ss;
-//    ss << x;
-//    return ss.str();
-//}
 
 char* double_to_c_string(double value)
 {
@@ -198,39 +173,69 @@ static std::string transform_signature(IM3Function f)
   return transform_return(f) + transform_parentheses(f);
 }
 
-std::map<std::string, wasm3::runtime> RUNTIMES;
+struct CallbackContext {
+  std::shared_ptr<facebook::jsi::Function> fn;
+  facebook::jsi::Runtime*                  rt;
+};
 
-std::shared_ptr<facebook::jsi::Function> mFunction;
-facebook::jsi::Runtime*                  mRuntime;
+std::map<std::string, wasm3::runtime>  RUNTIMES;
+std::map<std::string, CallbackContext> CONTEXTS;
 
-//Runtime someRuntime;
+// TODO: Fix potential for collisions.
+std::string getFunctionIdentifier(IM3Function f) {
+  std::string signature = transform_signature(f);
+  return std::string(f->import.moduleUtf8) + std::string(f->import.fieldUtf8) + signature;
+}
+
+facebook::jsi::Array ConvertStringArrayToJSIArray(Runtime &runtime, std::string* strings, size_t num_strings) {
+//    facebook::jsi::Runtime& runtime = facebook::jsi::Runtime::getVM();
+    facebook::jsi::Array jsi_array(runtime, num_strings);
+    for (size_t i = 0; i < num_strings; ++i) {
+        std::string str = strings[i];
+        facebook::jsi::String jsi_string = facebook::jsi::String::createFromUtf8(runtime, str);
+        jsi_array.setValueAtIndex(runtime, i, jsi_string);
+    }
+    return jsi_array;
+}
 
 m3ApiRawFunction(_doSomethingWithFunction)
 {
     
     uint8_t length = m3_GetArgCount(_ctx->function);
     
-    // Let's convert these into strings for JS.
-    std::string* result = new std::string[length];
+    std::map<std::string, CallbackContext>::iterator it = CONTEXTS.find(getFunctionIdentifier(_ctx->function).data());
+
+    if (it == CONTEXTS.end()) throw std::runtime_error("Unable to invoke.");
+
+    CallbackContext context = it->second;
+
+    facebook::jsi::Function& originalFunction = *context.fn.get();
     
-    facebook::jsi::Function& originalFunction = *mFunction.get();
-
-    originalFunction.call(*mRuntime, 2);
-
     // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
     // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
     m3ApiReturnType(int32_t)
+    
+    // Let's convert these into strings for JS.
+    std::string* result = new std::string[length];
     
     for (uint32_t i = 0; i < length ; i += 1) {
       M3ValueType type = m3_GetArgType(_ctx->function, i);
         
       if (type == c_m3Type_i32) {
         m3ApiGetArg (int32_t, param)
-          
         result[i] = std::to_string(param);
-        std::cout << "args got param " << std::to_string(param) << "\n";
       }
     }
+    
+    std::string functionName = m3_GetFunctionName(_ctx->function);
+    
+    Object resultDict(*context.rt);
+    
+    resultDict.setProperty(*context.rt, "module", facebook::jsi::String::createFromUtf8(*context.rt, std::string(_ctx->function->import.moduleUtf8)));
+    resultDict.setProperty(*context.rt,   "func", facebook::jsi::String::createFromUtf8(*context.rt, functionName));
+    resultDict.setProperty(*context.rt,   "args", ConvertStringArrayToJSIArray(*context.rt, result, length));
+    
+    originalFunction.call(*context.rt, resultDict);
     
 //    iprintf(str);
     m3ApiSuccess();
@@ -251,7 +256,10 @@ void install(Runtime &jsiRuntime) {
       String iid = params.getProperty(runtime, "iid").asString(runtime);
       String bufferSource = params.getProperty(runtime, "bufferSource").asString(runtime);
       uint32_t stackSizeInBytes = (uint32_t)params.getProperty(runtime, "stackSizeInBytes").asNumber();
+
       Function callback = params.getProperty(runtime, "callback").asObject(runtime).asFunction(runtime);
+        
+      std::shared_ptr<facebook::jsi::Function> fn = std::make_shared<facebook::jsi::Function>(std::move(callback));
 
       /* Wasm module can also be loaded from an array */
       try {
@@ -268,8 +276,6 @@ void install(Runtime &jsiRuntime) {
         m3runtime.load(mod);
 
         IM3Module io_module = mod.m_module.get();
-          
-          // Name of the function, list of parameters.
 
         for (u32 i = 0; i < io_module->numFunctions; ++i)
         {
@@ -285,17 +291,17 @@ void install(Runtime &jsiRuntime) {
           // TODO: look at m3_type_to_sig
           std::string signature = transform_signature(f);
             
-          mRuntime = &runtime;
-          mFunction = std::make_shared<facebook::jsi::Function>(std::move(callback)); // rvalue
+          CallbackContext userData;
             
-//          facebook::jsi::Function& originalFunction = *mFunction.get();
-//
-//          originalFunction.call(*mRuntime, 2);
-          
+          userData.rt = &runtime;
+          userData.fn = fn;
+            
+          CONTEXTS.insert(std::make_pair(getFunctionIdentifier(f).data(), userData));
+            
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction, NULL);
+          m3_LinkRawFunction(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction);
         }
 
         mod.compile();
