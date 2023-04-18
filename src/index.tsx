@@ -120,7 +120,7 @@ export async function instantiate<Exports extends object>(
   const iid = nanoid();
 
   const importObject = maybeImportObject || {};
-  const { env: maybeEnv, ...extras } = importObject;
+  const { env: maybeEnv } = importObject;
 
   const memory = maybeEnv?.memory || DEFAULT_MEMORY;
 
@@ -167,7 +167,7 @@ export async function instantiate<Exports extends object>(
         const res = reactNativeWebAssembly.RNWebassembly_invoke({
           iid,
           func,
-          args: args.map((e) => e.toString()),
+          args: args.map(e => e.toString()),
         });
 
         if (!res.length) return undefined;

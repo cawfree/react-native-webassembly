@@ -81,14 +81,15 @@ export default function App() {
           {
             runtime: {
               callback: (a: number): number => {
-                console.warn('Hey, got', a, '!');
+                console.warn('Hey, got', `${a}!`);
                 return a * 2;
               },
             },
           }
         );
 
-        localCallback.instance.exports.callBackFunction(42);
+        localCallback.instance.exports.callBackFunction(104);
+
       } catch (e) {
         console.error(e);
       }

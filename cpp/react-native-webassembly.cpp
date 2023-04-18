@@ -173,13 +173,13 @@ static std::string transform_signature(IM3Function f)
   return transform_return(f) + transform_parentheses(f);
 }
 
-struct CallbackContext {
+struct UserData {
   std::shared_ptr<facebook::jsi::Function> fn;
   facebook::jsi::Runtime*                  rt;
 };
 
-std::map<std::string, wasm3::runtime>  RUNTIMES;
-std::map<std::string, CallbackContext> CONTEXTS;
+std::map<std::string, wasm3::runtime> RUNTIMES;
+std::map<std::string, UserData>       USER_DATAS;
 
 // TODO: Fix potential for collisions.
 std::string getFunctionIdentifier(IM3Function f) {
@@ -203,11 +203,11 @@ m3ApiRawFunction(_doSomethingWithFunction)
     
     uint8_t length = m3_GetArgCount(_ctx->function);
     
-    std::map<std::string, CallbackContext>::iterator it = CONTEXTS.find(getFunctionIdentifier(_ctx->function).data());
+    std::map<std::string, UserData>::iterator it = USER_DATAS.find(getFunctionIdentifier(_ctx->function).data());
 
-    if (it == CONTEXTS.end()) throw std::runtime_error("Unable to invoke.");
+    if (it == USER_DATAS.end()) throw std::runtime_error("Unable to invoke.");
 
-    CallbackContext context = it->second;
+    UserData context = it->second;
 
     facebook::jsi::Function& originalFunction = *context.fn.get();
     
@@ -235,7 +235,7 @@ m3ApiRawFunction(_doSomethingWithFunction)
     resultDict.setProperty(*context.rt,   "func", facebook::jsi::String::createFromUtf8(*context.rt, functionName));
     resultDict.setProperty(*context.rt,   "args", ConvertStringArrayToJSIArray(*context.rt, result, length));
     
-    originalFunction.call(*context.rt, resultDict);
+    Value callResult = originalFunction.call(*context.rt, resultDict);
     
 //    iprintf(str);
     m3ApiSuccess();
@@ -291,12 +291,17 @@ void install(Runtime &jsiRuntime) {
           // TODO: look at m3_type_to_sig
           std::string signature = transform_signature(f);
             
-          CallbackContext userData;
-            
+          UserData userData;
           userData.rt = &runtime;
           userData.fn = fn;
             
-          CONTEXTS.insert(std::make_pair(getFunctionIdentifier(f).data(), userData));
+          std::string functionId = getFunctionIdentifier(f);
+           
+          // TODO: Make function identifiers unique w/ uid.
+          // HACK: Allow fast refresh to purge old callbacks.
+          USER_DATAS.erase(functionId);
+            
+          USER_DATAS.insert(std::make_pair(functionId.data(), userData));
             
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
