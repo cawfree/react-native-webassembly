@@ -182,20 +182,22 @@ std::map<std::string, wasm3::runtime> RUNTIMES;
 std::map<std::string, UserData>       USER_DATAS;
 
 // TODO: Fix potential for collisions.
-std::string getFunctionIdentifier(IM3Function f) {
+std::string ConvertM3FunctionToIdentifier(IM3Function f) {
   std::string signature = transform_signature(f);
   return std::string(f->import.moduleUtf8) + std::string(f->import.fieldUtf8) + signature;
 }
 
-facebook::jsi::Array ConvertStringArrayToJSIArray(Runtime &runtime, std::string* strings, size_t num_strings) {
-//    facebook::jsi::Runtime& runtime = facebook::jsi::Runtime::getVM();
-    facebook::jsi::Array jsi_array(runtime, num_strings);
-    for (size_t i = 0; i < num_strings; ++i) {
-        std::string str = strings[i];
-        facebook::jsi::String jsi_string = facebook::jsi::String::createFromUtf8(runtime, str);
-        jsi_array.setValueAtIndex(runtime, i, jsi_string);
-    }
-    return jsi_array;
+facebook::jsi::Array ConvertStringArrayToJSIArray(
+  Runtime &runtime,
+  std::string* strings,
+  size_t num_strings
+) {
+  facebook::jsi::Array jsi_array(runtime, num_strings);
+    
+  for (size_t i = 0; i < num_strings; i += 1)
+    jsi_array.setValueAtIndex(runtime, i, facebook::jsi::String::createFromUtf8(runtime, strings[i]));
+  
+  return jsi_array;
 }
 
 m3ApiRawFunction(_doSomethingWithFunction)
@@ -203,7 +205,7 @@ m3ApiRawFunction(_doSomethingWithFunction)
     
     uint8_t length = m3_GetArgCount(_ctx->function);
     
-    std::map<std::string, UserData>::iterator it = USER_DATAS.find(getFunctionIdentifier(_ctx->function).data());
+    std::map<std::string, UserData>::iterator it = USER_DATAS.find(ConvertM3FunctionToIdentifier(_ctx->function).data());
 
     if (it == USER_DATAS.end()) throw std::runtime_error("Unable to invoke.");
 
@@ -295,7 +297,7 @@ void install(Runtime &jsiRuntime) {
           userData.rt = &runtime;
           userData.fn = fn;
             
-          std::string functionId = getFunctionIdentifier(f);
+          std::string functionId = ConvertM3FunctionToIdentifier(f);
            
           // TODO: Make function identifiers unique w/ uid.
           // HACK: Allow fast refresh to purge old callbacks.
