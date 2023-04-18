@@ -88,8 +88,7 @@ export default function App() {
           }
         );
 
-        const result = localCallback.instance.exports.callBackFunction(42);
-        console.warn(result);
+        localCallback.instance.exports.callBackFunction(42);
       } catch (e) {
         console.error(e);
       }

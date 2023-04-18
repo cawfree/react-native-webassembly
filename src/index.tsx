@@ -2,10 +2,18 @@ const { Image, NativeModules } = require('react-native');
 const { Buffer } = require('buffer');
 const { nanoid } = require('nanoid/non-secure');
 
+type InstantiateParamsCallbackParams = {
+  readonly func: string;
+  readonly args: readonly string[];
+};
+
+type InstantiateParamsCallback = (params: InstantiateParamsCallbackParams) => number | void;
+
 type InstantiateParams = {
   readonly iid: string;
   readonly bufferSource: string;
   readonly stackSizeInBytes: number;
+  readonly callback: InstantiateParamsCallback;
 };
 
 type InvokeParams = {
@@ -124,6 +132,9 @@ export async function instantiate<Exports extends object>(
         ? await fetchRequireAsBase64(bufferSource)
         : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
+    callback: () => {
+      console.warn('whoa dude we did  a callback');
+    },
   });
 
   if (instanceResult !== 0)
