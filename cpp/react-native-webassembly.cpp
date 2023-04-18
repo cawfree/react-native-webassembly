@@ -76,6 +76,30 @@ static std::string base64_decode(const std::string &in) {
     return out;
 }
 
+//std::string int_to_string(int x) {
+//    std::stringstream ss;
+//    ss << x;
+//    return ss.str();
+//}
+
+//std::string to_string(long long x) {
+//    std::stringstream ss;
+//    ss << x;
+//    return ss.str();
+//}
+//
+//std::string to_string(float x) {
+//    std::stringstream ss;
+//    ss << x;
+//    return ss.str();
+//}
+//
+//std::string to_string(double x) {
+//    std::stringstream ss;
+//    ss << x;
+//    return ss.str();
+//}
+
 char* double_to_c_string(double value)
 {
   std::stringstream stream;
@@ -175,11 +199,40 @@ static std::string transform_signature(IM3Function f)
 
 std::map<std::string, wasm3::runtime> RUNTIMES;
 
-const void * myImportFunction(struct M3Runtime * runtime, struct M3ImportContext * context, unsigned long long * args, void * userData) {
-    return NULL;
-}
+//const void * myImportFunction(struct M3Runtime * runtime, struct M3ImportContext * context, unsigned long long * args, void * userData) {
+//    return NULL;
+//}
+//
+//typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
 
-typedef const void *(*t_callback)(struct M3Runtime *, struct M3ImportContext *, unsigned long long *, void *);
+m3ApiRawFunction(_doSomethingWithFunction)
+{
+    
+    uint8_t length = m3_GetArgCount(_ctx->function);
+    
+    // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
+    // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
+    m3ApiReturnType(int32_t)
+    
+    for (uint32_t i = 0; i < length ; i += 1) {
+      M3ValueType type = m3_GetArgType(_ctx->function, i);
+        
+      if (type == c_m3Type_i32) {
+        m3ApiGetArg (int32_t, param)
+          
+        std::cout << "args got param " << std::to_string(param) << "\n";
+      }
+    }
+    
+//    std::cout << "args we here " << "\n";
+    
+//    m3ApiGetArgMem (const char *, str)
+//    std::cout << "args we here " << std::string(str) << "\n";
+
+//    m3ApiGetArgMem (const char *, str)
+////    iprintf(str);
+    m3ApiSuccess();
+}
 
 namespace webassembly {
 
@@ -215,7 +268,7 @@ void install(Runtime &jsiRuntime) {
 
         for (u32 i = 0; i < io_module->numFunctions; ++i)
         {
-          const IM3Function f = & io_module->functions [i];
+          const IM3Function f = & io_module->functions[i];
 
           const char* moduleName = f->import.moduleUtf8;
           const char* fieldName = f->import.fieldUtf8;
@@ -223,24 +276,53 @@ void install(Runtime &jsiRuntime) {
           // TODO: is this valid?
           if (!moduleName || !fieldName) continue;
 
+          // TODO: remove this in favour of wasm3::detail::m3_signature
+          // TODO: look at m3_type_to_sig
           std::string signature = transform_signature(f);
+            
+            std::cout << "args signature is" << signature << "\n";
 
-//          M3FuncType * funcType = f->funcType;
-
-          t_callback callback = [](
-            struct M3Runtime *runtime,
-            struct M3ImportContext *context,
-            unsigned long long *args,
-            void *userData
-          ) -> const void * {
-            std::cout << "did try callback " << m3_GetFunctionName(context->function) << "\n";
-            return NULL;
-          };
+//          t_callback callback = [](
+//            struct M3Runtime *runtime,
+//            struct M3ImportContext *context,
+//            unsigned long long *args,
+//            void *userData
+//          ) -> const void * {
+//
+//              uint8_t length = m3_GetArgCount(context->function);
+//
+//              // Let's convert these into strings for JS.
+//              std::string* result = new std::string[length];
+//
+//              for (uint32_t i = 0; i < length ; i += 1) {
+//                M3ValueType type = m3_GetArgType(context->function, i);
+//
+//
+//                if (type == c_m3Type_i32) {
+//                  unsigned long long arg = args[i];
+//                  std::string str = std::to_string(arg);
+//                    unsigned long long argx = 123456789;
+//                    std::string strx = std::to_string(argx);
+//
+//
+//                  //int x = *reinterpret_cast<int*>(&args[i]);
+//                  result[i] = str;
+//                  std::cout << "args yeeee that is it " << str << " and " << strx << "\n";
+//                  return NULL;
+//                }
+//
+//                throw std::runtime_error("Unable to callback, encountered unexpected argument type.");
+//              }
+//
+//            return NULL;
+//          };
+            
+            
 
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), (M3RawCall)callback, NULL);
+          m3_LinkRawFunction(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction);
         }
 
         mod.compile();
