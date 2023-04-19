@@ -249,8 +249,6 @@ m3ApiRawFunction(_doSomethingWithFunction)
     m3ApiSuccess();
 }
 
-std::string FUNCTION_ID_TEST = "hellooo";
-
 namespace webassembly {
 
 void install(Runtime &jsiRuntime) {
