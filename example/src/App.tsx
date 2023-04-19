@@ -88,7 +88,7 @@ export default function App() {
           }
         );
 
-        localCallback.instance.exports.callBackFunction(104);
+        localCallback.instance.exports.callBackFunction(10);
 
       } catch (e) {
         console.error(e);

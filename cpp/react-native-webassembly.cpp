@@ -174,6 +174,7 @@ static std::string transform_signature(IM3Function f)
 }
 
 struct UserData {
+  std::shared_ptr<std::string>             id;
   std::shared_ptr<facebook::jsi::Function> fn;
   facebook::jsi::Runtime*                  rt;
 };
@@ -181,10 +182,9 @@ struct UserData {
 std::map<std::string, wasm3::runtime> RUNTIMES;
 std::map<std::string, UserData>       USER_DATAS;
 
-// TODO: Fix potential for collisions.
-std::string ConvertM3FunctionToIdentifier(IM3Function f) {
+std::string ConvertM3FunctionToIdentifier(IM3Function f, std::string iid) {
   std::string signature = transform_signature(f);
-  return std::string(f->import.moduleUtf8) + std::string(f->import.fieldUtf8) + signature;
+  return iid + std::string(f->import.moduleUtf8) + std::string(f->import.fieldUtf8) + signature;
 }
 
 facebook::jsi::Array ConvertStringArrayToJSIArray(
@@ -202,16 +202,22 @@ facebook::jsi::Array ConvertStringArrayToJSIArray(
 
 m3ApiRawFunction(_doSomethingWithFunction)
 {
+    void* userData = _ctx->userdata;
+    
+    const char* someStuff = static_cast<const char*>(userData);
+
+    std::cout << "args someStuff " << std::string(someStuff) << std::endl;
     
     uint8_t length = m3_GetArgCount(_ctx->function);
     
-    std::map<std::string, UserData>::iterator it = USER_DATAS.find(ConvertM3FunctionToIdentifier(_ctx->function).data());
+    std::map<std::string, UserData>::iterator it = USER_DATAS.find(someStuff);
 
     if (it == USER_DATAS.end()) throw std::runtime_error("Unable to invoke.");
 
     UserData context = it->second;
 
     facebook::jsi::Function& originalFunction = *context.fn.get();
+    
     
     // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
     // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
@@ -242,6 +248,8 @@ m3ApiRawFunction(_doSomethingWithFunction)
 //    iprintf(str);
     m3ApiSuccess();
 }
+
+std::string FUNCTION_ID_TEST = "hellooo";
 
 namespace webassembly {
 
@@ -292,23 +300,20 @@ void install(Runtime &jsiRuntime) {
           // TODO: remove this in favour of wasm3::detail::m3_signature
           // TODO: look at m3_type_to_sig
           std::string signature = transform_signature(f);
+          
+          std::shared_ptr<std::string> id = std::make_shared<std::string>(ConvertM3FunctionToIdentifier(f, std::string(iid.utf8(runtime))));
             
           UserData userData;
+          userData.id = id;
           userData.rt = &runtime;
           userData.fn = fn;
-            
-          std::string functionId = ConvertM3FunctionToIdentifier(f);
-           
-          // TODO: Make function identifiers unique w/ uid.
-          // HACK: Allow fast refresh to purge old callbacks.
-          USER_DATAS.erase(functionId);
-            
-          USER_DATAS.insert(std::make_pair(functionId.data(), userData));
+          
+          USER_DATAS.insert(std::make_pair(id->data(), userData));
             
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunction(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction);
+          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction, static_cast<void*>(id->data()));
         }
 
         mod.compile();
