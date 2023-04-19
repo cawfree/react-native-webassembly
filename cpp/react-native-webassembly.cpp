@@ -204,13 +204,9 @@ m3ApiRawFunction(_doSomethingWithFunction)
 {
     void* userData = _ctx->userdata;
     
-    const char* someStuff = static_cast<const char*>(userData);
-
-    std::cout << "args someStuff " << std::string(someStuff) << std::endl;
-    
     uint8_t length = m3_GetArgCount(_ctx->function);
     
-    std::map<std::string, UserData>::iterator it = USER_DATAS.find(someStuff);
+    std::map<std::string, UserData>::iterator it = USER_DATAS.find(static_cast<const char*>(userData));
 
     if (it == USER_DATAS.end()) throw std::runtime_error("Unable to invoke.");
 
@@ -218,10 +214,41 @@ m3ApiRawFunction(_doSomethingWithFunction)
 
     facebook::jsi::Function& originalFunction = *context.fn.get();
     
+    uint32_t returnCount = m3_GetRetCount(_ctx->function);
+    
+    int32_t *raw_return_i32;
+    int64_t *raw_return_i64;
+    float   *raw_return_f32;
+    double  *raw_return_f64;
     
     // The order here matters: m3ApiReturnType should go before calling get_args_from_stack,
     // since both modify `_sp`, and the return value on the stack is reserved before the arguments.
-    m3ApiReturnType(int32_t)
+    if (returnCount == 0) {
+      // TODO: Does this work?
+      m3ApiReturnType(void)
+    } else if (returnCount == 1) {
+      M3ValueType returnType = m3_GetRetType(_ctx->function, 0);
+        
+      if (returnType == c_m3Type_i32) {
+        m3ApiReturnType(int32_t)
+        raw_return_i32 = raw_return;
+      } else if (returnType == c_m3Type_i64) {
+        m3ApiReturnType(int64_t)
+        raw_return_i64 = raw_return;
+      } else if (returnType == c_m3Type_f32) {
+        m3ApiReturnType(float)
+        raw_return_f32 = raw_return;
+      } else if (returnType ==  c_m3Type_f64) {
+        m3ApiReturnType(double)
+        raw_return_f64 = raw_return;
+      } else {
+        return m3Err_typeMismatch;
+      }
+        
+    } else {
+      return m3Err_tooManyArgsRets;
+    }
+    
     
     // Let's convert these into strings for JS.
     std::string* result = new std::string[length];
@@ -245,8 +272,36 @@ m3ApiRawFunction(_doSomethingWithFunction)
     
     Value callResult = originalFunction.call(*context.rt, resultDict);
     
-//    iprintf(str);
-    m3ApiSuccess();
+    if (returnCount == 0) {
+      m3ApiSuccess();
+    }
+    
+    if (returnCount == 1) {
+      M3ValueType returnType = m3_GetRetType(_ctx->function, 0);
+        
+      if (!callResult.isNumber()) throw std::runtime_error("Invalid return value from callback (Expected Number).");
+    
+      double result = callResult.asNumber();
+        
+      if (returnType == c_m3Type_i32) {
+        int32_t *raw_return = raw_return_i32;
+        m3ApiReturn(static_cast<int32_t>(result));
+      } else if (returnType == c_m3Type_i64) {
+        int64_t *raw_return = raw_return_i64;
+        m3ApiReturn(static_cast<int64_t>(result));
+      } else if (returnType == c_m3Type_f32) {
+        float *raw_return = raw_return_f32;
+        m3ApiReturn(static_cast<float>(result));
+      } else if (returnType ==  c_m3Type_f64) {
+        double *raw_return = raw_return_f64;
+        m3ApiReturn(result);
+      } else {
+        return m3Err_typeMismatch;
+      }
+        
+    }
+    
+    return m3Err_tooManyArgsRets;
 }
 
 namespace webassembly {
