@@ -8,7 +8,9 @@ type InstantiateParamsCallbackParams = {
   readonly args: readonly string[];
 };
 
-type InstantiateParamsCallback = (params: InstantiateParamsCallbackParams) => number | void;
+type InstantiateParamsCallback = (
+  params: InstantiateParamsCallbackParams
+) => number | void;
 
 type InstantiateParams = {
   readonly iid: string;
@@ -133,23 +135,21 @@ export async function instantiate<Exports extends object>(
         ? await fetchRequireAsBase64(bufferSource)
         : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
-    callback: ({func, args, module}) => {
+    callback: ({ func, args, module }) => {
       const maybeModule = importObject[module];
 
       if (!maybeModule)
-        throw new Error(`[WebAssembly]: Tried to invoke a function belonging to module "${
-          module
-        }", but this was not defined.`);
+        throw new Error(
+          `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
+        );
 
       // @ts-ignore
       const maybeFunction = maybeModule?.[func];
 
       if (!maybeFunction)
-        throw new Error(`[WebAssembly]: Tried to invoke a function "${
-          func
-        }" belonging to module "${
-          module
-        }", but it was not defined.`);
+        throw new Error(
+          `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
+        );
 
       return maybeFunction(...args.map(parseFloat));
     },
@@ -167,7 +167,7 @@ export async function instantiate<Exports extends object>(
         const res = reactNativeWebAssembly.RNWebassembly_invoke({
           iid,
           func,
-          args: args.map(e => e.toString()),
+          args: args.map((e) => e.toString()),
         });
 
         if (!res.length) return undefined;

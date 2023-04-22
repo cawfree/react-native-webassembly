@@ -72,27 +72,24 @@ export default function App() {
   );
 
   React.useEffect(
-    () => void (async () => {
-      try {
-        const localCallback = await WebAssembly.instantiate<{
-          readonly callBackFunction: (a: number) => number;
-        }>(
-          LocalCallback,
-          {
+    () =>
+      void (async () => {
+        try {
+          const localCallback = await WebAssembly.instantiate<{
+            readonly callBackFunction: (a: number) => number;
+          }>(LocalCallback, {
             runtime: {
               callback: (a: number): number => a * 2,
             },
-          }
-        );
+          });
 
-        const result = localCallback.instance.exports.callBackFunction(25);
+          const result = localCallback.instance.exports.callBackFunction(25);
 
-        if (result !== 50) throw new Error('Simple callback failure.');
-      } catch (e) {
-        console.error(e);
-      }
-
-    })(),
+          if (result !== 50) throw new Error('Simple callback failure.');
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
     []
   );
 
