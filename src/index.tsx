@@ -2,10 +2,21 @@ const { Image, NativeModules } = require('react-native');
 const { Buffer } = require('buffer');
 const { nanoid } = require('nanoid/non-secure');
 
+type InstantiateParamsCallbackParams = {
+  readonly module: string;
+  readonly func: string;
+  readonly args: readonly string[];
+};
+
+type InstantiateParamsCallback = (
+  params: InstantiateParamsCallbackParams
+) => number | void;
+
 type InstantiateParams = {
   readonly iid: string;
   readonly bufferSource: string;
   readonly stackSizeInBytes: number;
+  readonly callback: InstantiateParamsCallback;
 };
 
 type InvokeParams = {
@@ -124,6 +135,24 @@ export async function instantiate<Exports extends object>(
         ? await fetchRequireAsBase64(bufferSource)
         : Buffer.from(bufferSource).toString('base64'),
     stackSizeInBytes,
+    callback: ({ func, args, module }) => {
+      const maybeModule = importObject[module];
+
+      if (!maybeModule)
+        throw new Error(
+          `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
+        );
+
+      // @ts-ignore
+      const maybeFunction = maybeModule?.[func];
+
+      if (!maybeFunction)
+        throw new Error(
+          `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
+        );
+
+      return maybeFunction(...args.map(parseFloat));
+    },
   });
 
   if (instanceResult !== 0)
