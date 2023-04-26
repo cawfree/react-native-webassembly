@@ -1,7 +1,7 @@
 {
   "name": "react-native-webassembly",
   "version": "0.2.7",
-  "description": "⚛️ 🏎 WebAssembly for React Native powered by C++ TurboModules.",
+  "description": "⚛️ 🏎 WebAssembly for React Native JSI.",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "types": "lib/typescript/index.d.ts",
@@ -13,6 +13,7 @@
     "android",
     "ios",
     "cpp",
+    "app.plugin.js",
     "*.podspec",
     "!lib/typescript/example",
     "!ios/build",
@@ -55,6 +56,7 @@
   "devDependencies": {
     "@commitlint/config-conventional": "^17.0.2",
     "@evilmartians/lefthook": "^1.2.2",
+    "@expo/config-plugins": "^6.0.1",
     "@react-native-community/eslint-config": "^3.0.2",
     "@release-it/conventional-changelog": "^5.0.0",
     "@types/jest": "^28.1.2",
