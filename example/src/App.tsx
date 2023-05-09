@@ -5,6 +5,7 @@ import * as WebAssembly from 'react-native-webassembly';
 
 import LocalHello from './sources/Local.Hello.wasm';
 import LocalCallback from './sources/Local.Callback.wasm';
+//import LocalSimpleMemory from './sources/Local.SimpleMemory.wasm';
 
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
 import { fetchWasm } from './utils';
@@ -17,16 +18,19 @@ export default function App() {
 
   const { calculateWTNSBin, error: circomError } = useWasmCircomRuntime();
 
+  /* Hook I/O. */
   React.useEffect(
     () => void (helloWorldError && console.error(helloWorldError)),
     [helloWorldError]
   );
 
+  /* ZK Snark */
   React.useEffect(
     () => void (circomError && console.error(circomError)),
     [circomError]
   );
 
+  /* Add. */
   React.useEffect(() => {
     if (!helloWorldResult) return;
 
@@ -35,6 +39,7 @@ export default function App() {
     if (result !== 305) throw new Error('Failed to add.');
   }, [helloWorldResult]);
 
+  /* Local imports. */
   React.useEffect(
     () =>
       void (async () => {
@@ -53,6 +58,7 @@ export default function App() {
     []
   );
 
+  /* complex allocation */
   React.useEffect(
     () =>
       void (async () => {
@@ -71,6 +77,7 @@ export default function App() {
     []
   );
 
+  /* callback e2e */
   React.useEffect(
     () =>
       void (async () => {
@@ -85,13 +92,31 @@ export default function App() {
 
           const result = localCallback.instance.exports.callBackFunction(25);
 
-          if (result !== 50) throw new Error('Simple callback failure.');
+          if (result !== 50) throw new Error('Callback failure.');
         } catch (e) {
           console.error(e);
         }
       })(),
     []
   );
+
+  ///* Simple memory. */
+  //React.useEffect(() => void (async () => {
+  //  try {
+  //    const localSimpleMemory = await WebAssembly.instantiate<{
+  //      readonly toggle_memory: () => void;
+  //      readonly get_memory: () => number;
+  //    }>(LocalSimpleMemory);
+
+  //    //localSimpleMemory.instance.exports.toggle_memory();
+
+  //    //const memory = localSimpleMemory.instance.exports.get_memory();
+  //    //console.warn('it is', memory);
+
+  //  } catch (e) {
+  //    console.error(e);
+  //  }
+  //})(), []);
 
   return (
     <View style={styles.container}>

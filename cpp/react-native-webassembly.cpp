@@ -182,9 +182,21 @@ struct UserData {
 std::map<std::string, wasm3::runtime> RUNTIMES;
 std::map<std::string, UserData>       USER_DATAS;
 
-std::string ConvertM3FunctionToIdentifier(IM3Function f, std::string iid) {
+std::string M3GetResolvedModuleName(IM3Function f) {
+  return f->import.moduleUtf8 ? std::string(f->import.moduleUtf8) : "*";
+}
+
+std::string* M3GetResolvedFunctionName(IM3Function f) {
+  return f->export_name
+    ? new std::string(f->export_name)
+    : f->import.fieldUtf8
+    ? new std::string(f->import.fieldUtf8)
+    : nullptr;
+}
+
+std::string ConvertM3ExportFunctionToIdentifier(IM3Function f, std::string iid) {
   std::string signature = transform_signature(f);
-  return iid + std::string(f->import.moduleUtf8) + std::string(f->import.fieldUtf8) + signature;
+  return iid + M3GetResolvedModuleName(f) + *M3GetResolvedFunctionName(f) + signature;
 }
 
 facebook::jsi::Array ConvertStringArrayToJSIArray(
@@ -340,21 +352,21 @@ void install(Runtime &jsiRuntime) {
 
         IM3Module io_module = mod.m_module.get();
 
+        /* export initialization */
         for (u32 i = 0; i < io_module->numFunctions; ++i)
         {
           const IM3Function f = & io_module->functions[i];
 
-          const char* moduleName = f->import.moduleUtf8;
-          const char* fieldName = f->import.fieldUtf8;
-
-          // TODO: is this valid?
-          if (!moduleName || !fieldName) continue;
+          std::string* functionName = M3GetResolvedFunctionName(f);
+            
+          // Here we only care to connect to functions.
+          if (functionName == nullptr) continue;
 
           // TODO: remove this in favour of wasm3::detail::m3_signature
           // TODO: look at m3_type_to_sig
           std::string signature = transform_signature(f);
           
-          std::shared_ptr<std::string> id = std::make_shared<std::string>(ConvertM3FunctionToIdentifier(f, std::string(iid.utf8(runtime))));
+          std::shared_ptr<std::string> id = std::make_shared<std::string>(ConvertM3ExportFunctionToIdentifier(f, std::string(iid.utf8(runtime))));
             
           UserData userData;
           userData.id = id;
@@ -366,7 +378,7 @@ void install(Runtime &jsiRuntime) {
           // TODO: The callback implementation is erroneous?
           // TODO: Generate signature.
           // TODO: Remove raw function links.
-          m3_LinkRawFunctionEx(io_module, moduleName, fieldName, signature.data(), &_doSomethingWithFunction, static_cast<void*>(id->data()));
+          m3_LinkRawFunctionEx(io_module, M3GetResolvedModuleName(f).data(), functionName->data(), signature.data(), &_doSomethingWithFunction, static_cast<void*>(id->data()));
         }
 
         mod.compile();
