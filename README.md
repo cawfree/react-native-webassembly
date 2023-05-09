@@ -104,5 +104,9 @@ Here, we declare an `exceptionHandler` as `runtime` imports to the compiled modu
 
 You can find a working implementation of this process in the [__Example App__](example/src/App.tsx).
 
+### 🤔 Memory
+
+Currently, `wasm3` [__only supports a single memory region__](https://github.com/wasm3/wasm3/blob/772f8f4648fcba75f77f894a6050db121e7651a2/source/wasm3.h#L214). This means that WebAssembly files which contain multiple `memory` allocations are not supported.
+
 ### ✌️ License
 [__MIT__](LICENSE)

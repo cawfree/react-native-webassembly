@@ -5,7 +5,7 @@ import * as WebAssembly from 'react-native-webassembly';
 
 import LocalHello from './sources/Local.Hello.wasm';
 import LocalCallback from './sources/Local.Callback.wasm';
-//import LocalSimpleMemory from './sources/Local.SimpleMemory.wasm';
+import LocalSimpleMemory from './sources/Local.SimpleMemory.wasm';
 
 import { useWasmCircomRuntime, useWasmHelloWorld } from './hooks';
 import { fetchWasm } from './utils';
@@ -100,23 +100,38 @@ export default function App() {
     []
   );
 
-  ///* Simple memory. */
-  //React.useEffect(() => void (async () => {
-  //  try {
-  //    const localSimpleMemory = await WebAssembly.instantiate<{
-  //      readonly toggle_memory: () => void;
-  //      readonly get_memory: () => number;
-  //    }>(LocalSimpleMemory);
+  /* Simple memory. */
+  React.useEffect(() => void (async () => {
+    try {
+      const localSimpleMemory = await WebAssembly.instantiate<{
+        readonly write_byte_to_memory: (value: number) => void;
+        readonly read_byte_from_memory: () => number;
+      }>(LocalSimpleMemory);
 
-  //    //localSimpleMemory.instance.exports.toggle_memory();
+      const testMemory = (withValue: number) => {
+        localSimpleMemory.instance.exports.write_byte_to_memory(withValue);
 
-  //    //const memory = localSimpleMemory.instance.exports.get_memory();
-  //    //console.warn('it is', memory);
+        const wasmResult = localSimpleMemory.instance.exports.read_byte_from_memory();
 
-  //  } catch (e) {
-  //    console.error(e);
-  //  }
-  //})(), []);
+        if (wasmResult !== withValue)
+          throw new Error(`Expected ${withValue}, encountered wasm ${wasmResult}.`);
+
+        // @ts-ignore
+        const ab: ArrayBuffer = localSimpleMemory.instance.exports['TEST__memory'];
+
+        const jsResult = new Uint8Array(ab.slice(0, 1))[0];
+
+        // Ensure the JavaScript buffer is up-to-date.
+        if (jsResult !== withValue)
+          throw new Error(`Expected ${withValue}, encountered js ${wasmResult}.`);
+      };
+
+      for (let i = 0; i < 255; i += 1) testMemory(i);
+
+    } catch (e) {
+      console.error(e);
+    }
+  })(), []);
 
   return (
     <View style={styles.container}>

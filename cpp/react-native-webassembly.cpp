@@ -182,6 +182,7 @@ struct UserData {
 std::map<std::string, wasm3::runtime> RUNTIMES;
 std::map<std::string, UserData>       USER_DATAS;
 
+
 std::string M3GetResolvedModuleName(IM3Function f) {
   return f->import.moduleUtf8 ? std::string(f->import.moduleUtf8) : "*";
 }
@@ -316,6 +317,32 @@ m3ApiRawFunction(_doSomethingWithFunction)
     return m3Err_tooManyArgsRets;
 }
 
+class MutableMemoryHeaderBuffer : public MutableBuffer {
+public:
+   MutableMemoryHeaderBuffer(IM3Runtime i_runtime) : m_runtime(i_runtime) {}
+  ~MutableMemoryHeaderBuffer() override {}
+  size_t size() const override {
+    uint32_t memorySize;
+    uint8_t *memoryPtr = m3_GetMemory(m_runtime, &memorySize, 0);
+    return memorySize;
+  }
+  uint8_t* data() override {
+    uint32_t memorySize;
+    return m3_GetMemory(m_runtime, &memorySize, 0);
+  }
+private:
+  IM3Runtime m_runtime;
+};
+
+facebook::jsi::ArrayBuffer M3MemoryHeaderToMutableBuffer(facebook::jsi::Runtime& runtime, IM3Runtime i_runtime) {
+  
+  MutableMemoryHeaderBuffer* buffer = new MutableMemoryHeaderBuffer(i_runtime);
+    
+  std::shared_ptr<MutableMemoryHeaderBuffer> shared_buffer = std::shared_ptr<MutableMemoryHeaderBuffer>(buffer);
+    
+  return facebook::jsi::ArrayBuffer(runtime, shared_buffer);
+}
+
 namespace webassembly {
 
 void install(Runtime &jsiRuntime) {
@@ -324,13 +351,16 @@ void install(Runtime &jsiRuntime) {
     jsiRuntime,
     PropNameID::forAscii(jsiRuntime, "RNWebassembly_instantiate"),
     0,
-    [](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
+                                                                    [&jsiRuntime](Runtime &runtime, const Value &thisValue, const Value *arguments, size_t count) -> Value {
+        
+      auto responseObject = facebook::jsi::Object(runtime);
 
       Object params = arguments->getObject(runtime);
 
       String iid = params.getProperty(runtime, "iid").asString(runtime);
       String bufferSource = params.getProperty(runtime, "bufferSource").asString(runtime);
       uint32_t stackSizeInBytes = (uint32_t)params.getProperty(runtime, "stackSizeInBytes").asNumber();
+        
 
       Function callback = params.getProperty(runtime, "callback").asObject(runtime).asFunction(runtime);
         
@@ -382,14 +412,24 @@ void install(Runtime &jsiRuntime) {
         }
 
         mod.compile();
-
+          
+        // NOTICE: Only a single memory element may be provided at this time.
+        // TODO: m3_exec -> ResizeMemory()
+        // TODO: m3_env -> pub ResizeMemory
+        // TODO: Find the name of the memory call, if provided.
+        // TODO: How to tell if this was set? How to find the variable name?
+        // TODO: definitely increasing memorySize, we just need to find where?
+        facebook::jsi::ArrayBuffer arrayBuffer = M3MemoryHeaderToMutableBuffer(runtime, m3runtime.m_runtime.get());
+          
         RUNTIMES.insert(std::make_pair(iid.utf8(runtime), m3runtime));
-
-        return Value(0);
+          
+        responseObject.setProperty(runtime, "result", 0);
+        responseObject.setProperty(runtime, "buffer", arrayBuffer);
       } catch(wasm3::error &e) {
         std::cerr << e.what() << std::endl;
-        return Value(1);
+        responseObject.setProperty(runtime, "result", 1);
       }
+      return responseObject;
     }
   );
 
@@ -421,7 +461,7 @@ void install(Runtime &jsiRuntime) {
         vec.push_back(args.getValueAtIndex(runtime, i).asString(runtime).utf8(runtime));
 
       if (fn.GetRetCount() > 1) throw std::runtime_error("Unable to invoke.");
-
+        
       if (fn.GetRetCount() == 0) {
         fn.call_argv<int>(vec);
         return 0;

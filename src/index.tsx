@@ -2,6 +2,11 @@ const { Image, NativeModules } = require('react-native');
 const { Buffer } = require('buffer');
 const { nanoid } = require('nanoid/non-secure');
 
+type InstantiateCallbackResult = {
+  readonly result: number;
+  readonly buffer?: ArrayBuffer;
+};
+
 type InstantiateParamsCallbackParams = {
   readonly module: string;
   readonly func: string;
@@ -27,7 +32,7 @@ type InvokeParams = {
 
 // @ts-expect-error synthesized
 const reactNativeWebAssembly: {
-  readonly RNWebassembly_instantiate: (params: InstantiateParams) => number;
+  readonly RNWebassembly_instantiate: (params: InstantiateParams) => InstantiateCallbackResult;
   readonly RNWebassembly_invoke: (params: InvokeParams) => readonly string[];
 } = global;
 
@@ -128,7 +133,10 @@ export async function instantiate<Exports extends object>(
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
-  const instanceResult = reactNativeWebAssembly.RNWebassembly_instantiate({
+  const {
+    result: instanceResult,
+    buffer: maybeBuffer,
+  }:InstantiateCallbackResult = reactNativeWebAssembly.RNWebassembly_instantiate({
     iid,
     bufferSource:
       typeof bufferSource === 'number'
@@ -162,6 +170,10 @@ export async function instantiate<Exports extends object>(
     get(_, func) {
       if (typeof func !== 'string')
         throw new Error(`Expected string, encountered ${typeof func}.`);
+
+      // TODO: determine the name of the memory variable
+      //if (func === 'TEST__memory') return reactNativeWebAssembly.foo;
+      if (func === 'TEST__memory') return maybeBuffer;
 
       return (...args: readonly number[]) => {
         const res = reactNativeWebAssembly.RNWebassembly_invoke({
