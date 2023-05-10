@@ -106,9 +106,9 @@ You can find a working implementation of this process in the [__Example App__](e
 
 ### 🤔 Memory
 
-Currently, `wasm3` [__only supports a single memory region__](https://github.com/wasm3/wasm3/blob/772f8f4648fcba75f77f894a6050db121e7651a2/source/wasm3.h#L214).
+Currently, `wasm3` [__only supports a single memory region__](https://github.com/wasm3/wasm3/blob/772f8f4648fcba75f77f894a6050db121e7651a2/source/wasm3.h#L214). This means that WebAssembly files which contain multiple `memory` allocations are not currently supported.
 
-This means that WebAssembly files which contain multiple `memory` allocations are not currently supported. `react-native-webassembly` exposes access to the runtime `memory` element for allocated instances, which is represented using an `ArrayBuffer` named `memory`. This shares the same backing array as the native runtime.
+[`react-native-webassembly`](https://github.com/cawfree/react-native-webassembly) exposes access to the runtime `memory` element for allocated instances, which is represented using an `ArrayBuffer` named `memory`. This shares the same backing array as the native runtime.
 
 ### ✌️ License
 [__MIT__](LICENSE)
