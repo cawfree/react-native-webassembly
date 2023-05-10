@@ -1,6 +1,6 @@
 {
   "name": "react-native-webassembly",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "⚛️ 🏎 WebAssembly for React Native JSI.",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
