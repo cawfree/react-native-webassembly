@@ -101,36 +101,44 @@ export default function App() {
   );
 
   /* Simple memory. */
-  React.useEffect(() => void (async () => {
-    try {
-      const localSimpleMemory = await WebAssembly.instantiate<{
-        readonly write_byte_to_memory: (value: number) => void;
-        readonly read_byte_from_memory: () => number;
-      }>(LocalSimpleMemory);
+  React.useEffect(
+    () =>
+      void (async () => {
+        try {
+          const localSimpleMemory = await WebAssembly.instantiate<{
+            readonly write_byte_to_memory: (value: number) => void;
+            readonly read_byte_from_memory: () => number;
+          }>(LocalSimpleMemory);
 
-      const testMemory = (withValue: number) => {
-        localSimpleMemory.instance.exports.write_byte_to_memory(withValue);
+          const testMemory = (withValue: number) => {
+            localSimpleMemory.instance.exports.write_byte_to_memory(withValue);
 
-        const wasmResult = localSimpleMemory.instance.exports.read_byte_from_memory();
+            const wasmResult =
+              localSimpleMemory.instance.exports.read_byte_from_memory();
 
-        if (wasmResult !== withValue)
-          throw new Error(`Expected ${withValue}, encountered wasm ${wasmResult}.`);
+            if (wasmResult !== withValue)
+              throw new Error(
+                `Expected ${withValue}, encountered wasm ${wasmResult}.`
+              );
 
-        const ab: ArrayBuffer = localSimpleMemory.instance.exports.memory!;
+            const ab: ArrayBuffer = localSimpleMemory.instance.exports.memory!;
 
-        const jsResult = new Uint8Array(ab.slice(0, 1))[0];
+            const jsResult = new Uint8Array(ab.slice(0, 1))[0];
 
-        // Ensure the JavaScript buffer is up-to-date.
-        if (jsResult !== withValue)
-          throw new Error(`Expected ${withValue}, encountered js ${jsResult}.`);
-      };
+            // Ensure the JavaScript buffer is up-to-date.
+            if (jsResult !== withValue)
+              throw new Error(
+                `Expected ${withValue}, encountered js ${jsResult}.`
+              );
+          };
 
-      for (let i = 0; i < 255; i += 1)testMemory(i);
-
-    } catch (e) {
-      console.error(e);
-    }
-  })(), []);
+          for (let i = 0; i < 255; i += 1) testMemory(i);
+        } catch (e) {
+          console.error(e);
+        }
+      })(),
+    []
+  );
 
   return (
     <View style={styles.container}>

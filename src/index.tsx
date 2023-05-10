@@ -32,7 +32,9 @@ type InvokeParams = {
 
 // @ts-expect-error synthesized
 const reactNativeWebAssembly: {
-  readonly RNWebassembly_instantiate: (params: InstantiateParams) => InstantiateCallbackResult;
+  readonly RNWebassembly_instantiate: (
+    params: InstantiateParams
+  ) => InstantiateCallbackResult;
   readonly RNWebassembly_invoke: (params: InvokeParams) => readonly string[];
 } = global;
 
@@ -137,36 +139,38 @@ export async function instantiate<Exports extends object>(
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
-  const bufferSourceBase64 = typeof bufferSource === 'number'
-    ? await fetchRequireAsBase64(bufferSource)
-    : Buffer.from(bufferSource).toString('base64')
+  const bufferSourceBase64 =
+    typeof bufferSource === 'number'
+      ? await fetchRequireAsBase64(bufferSource)
+      : Buffer.from(bufferSource).toString('base64');
 
   const {
     result: instanceResult,
     buffer: maybeBuffer,
-  }:InstantiateCallbackResult = reactNativeWebAssembly.RNWebassembly_instantiate({
-    iid,
-    bufferSource: bufferSourceBase64,
-    stackSizeInBytes,
-    callback: ({ func, args, module }) => {
-      const maybeModule = importObject[module];
+  }: InstantiateCallbackResult =
+    reactNativeWebAssembly.RNWebassembly_instantiate({
+      iid,
+      bufferSource: bufferSourceBase64,
+      stackSizeInBytes,
+      callback: ({ func, args, module }) => {
+        const maybeModule = importObject[module];
 
-      if (!maybeModule)
-        throw new Error(
-          `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
-        );
+        if (!maybeModule)
+          throw new Error(
+            `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
+          );
 
-      // @ts-ignore
-      const maybeFunction = maybeModule?.[func];
+        // @ts-ignore
+        const maybeFunction = maybeModule?.[func];
 
-      if (!maybeFunction)
-        throw new Error(
-          `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
-        );
+        if (!maybeFunction)
+          throw new Error(
+            `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
+          );
 
-      return maybeFunction(...args.map(parseFloat));
-    },
-  });
+        return maybeFunction(...args.map(parseFloat));
+      },
+    });
 
   if (instanceResult !== 0)
     throw new Error(`Failed to instantiate WebAssembly. (${instanceResult})`);
