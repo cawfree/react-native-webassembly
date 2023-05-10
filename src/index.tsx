@@ -81,8 +81,12 @@ export type WebAssemblyImportObject = ImportsMap & {
   readonly env?: WebAssemblyEnv;
 };
 
+type WebAssemblyDefaultExports = {
+  readonly memory?: ArrayBuffer;
+};
+
 export type WebassemblyInstantiateResult<Exports extends object> = {
-  readonly instance: WebassemblyInstance<Exports>;
+  readonly instance: WebassemblyInstance<Exports & WebAssemblyDefaultExports>;
 };
 
 const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
@@ -168,18 +172,16 @@ export async function instantiate<Exports extends object>(
     throw new Error(`Failed to instantiate WebAssembly. (${instanceResult})`);
 
   const exports = new Proxy({} as Exports, {
-    get(_, func) {
-      if (typeof func !== 'string')
-        throw new Error(`Expected string, encountered ${typeof func}.`);
+    get(_, exportName) {
+      if (typeof exportName !== 'string')
+        throw new Error(`Expected string, encountered ${typeof exportName}.`);
 
-      // TODO: determine the name of the memory variable
-      //if (func === 'TEST__memory') return reactNativeWebAssembly.foo;
-      if (func === 'TEST__memory') return maybeBuffer;
+      if (exportName === 'memory') return maybeBuffer;
 
       return (...args: readonly number[]) => {
         const res = reactNativeWebAssembly.RNWebassembly_invoke({
           iid,
-          func,
+          func: exportName,
           args: args.map((e) => e.toString()),
         });
 

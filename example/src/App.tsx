@@ -106,8 +106,6 @@ export default function App() {
       const localSimpleMemory = await WebAssembly.instantiate<{
         readonly write_byte_to_memory: (value: number) => void;
         readonly read_byte_from_memory: () => number;
-        // TODO: connect this.
-        readonly memory: ArrayBuffer;
       }>(LocalSimpleMemory);
 
       const testMemory = (withValue: number) => {
@@ -118,8 +116,7 @@ export default function App() {
         if (wasmResult !== withValue)
           throw new Error(`Expected ${withValue}, encountered wasm ${wasmResult}.`);
 
-        // @ts-ignore
-        const ab: ArrayBuffer = localSimpleMemory.instance.exports['TEST__memory'];
+        const ab: ArrayBuffer = localSimpleMemory.instance.exports.memory!;
 
         const jsResult = new Uint8Array(ab.slice(0, 1))[0];
 
