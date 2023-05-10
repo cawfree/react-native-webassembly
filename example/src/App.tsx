@@ -106,6 +106,8 @@ export default function App() {
       const localSimpleMemory = await WebAssembly.instantiate<{
         readonly write_byte_to_memory: (value: number) => void;
         readonly read_byte_from_memory: () => number;
+        // TODO: connect this.
+        readonly memory: ArrayBuffer;
       }>(LocalSimpleMemory);
 
       const testMemory = (withValue: number) => {
@@ -123,10 +125,10 @@ export default function App() {
 
         // Ensure the JavaScript buffer is up-to-date.
         if (jsResult !== withValue)
-          throw new Error(`Expected ${withValue}, encountered js ${wasmResult}.`);
+          throw new Error(`Expected ${withValue}, encountered js ${jsResult}.`);
       };
 
-      for (let i = 0; i < 255; i += 1) testMemory(i);
+      for (let i = 0; i < 255; i += 1)testMemory(i);
 
     } catch (e) {
       console.error(e);
