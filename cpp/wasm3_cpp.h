@@ -225,6 +225,7 @@ namespace wasm3 {
          * @return function object
          */
         function find_function(const char *name);
+        std::shared_ptr<M3Runtime> m_runtime;
 
     protected:
         friend class environment;
@@ -239,7 +240,6 @@ namespace wasm3 {
 
         /* runtime extends the lifetime of the environment */
         std::shared_ptr<M3Environment> m_env;
-        std::shared_ptr<M3Runtime> m_runtime;
     };
 
     /**

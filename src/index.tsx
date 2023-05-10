@@ -2,6 +2,11 @@ const { Image, NativeModules } = require('react-native');
 const { Buffer } = require('buffer');
 const { nanoid } = require('nanoid/non-secure');
 
+type InstantiateCallbackResult = {
+  readonly result: number;
+  readonly buffer?: ArrayBuffer;
+};
+
 type InstantiateParamsCallbackParams = {
   readonly module: string;
   readonly func: string;
@@ -27,7 +32,9 @@ type InvokeParams = {
 
 // @ts-expect-error synthesized
 const reactNativeWebAssembly: {
-  readonly RNWebassembly_instantiate: (params: InstantiateParams) => number;
+  readonly RNWebassembly_instantiate: (
+    params: InstantiateParams
+  ) => InstantiateCallbackResult;
   readonly RNWebassembly_invoke: (params: InvokeParams) => readonly string[];
 } = global;
 
@@ -63,7 +70,7 @@ const DEFAULT_MEMORY = new Memory({
   initial: DEFAULT_STACK_SIZE_IN_BYTES,
 });
 
-export type Imports = Record<string, Function>;
+export type Imports = Record<string, Function | ArrayBuffer>;
 
 type ImportsMap = Omit<
   {
@@ -76,8 +83,12 @@ export type WebAssemblyImportObject = ImportsMap & {
   readonly env?: WebAssemblyEnv;
 };
 
+type WebAssemblyDefaultExports = {
+  readonly memory?: ArrayBuffer;
+};
+
 export type WebassemblyInstantiateResult<Exports extends object> = {
-  readonly instance: WebassemblyInstance<Exports>;
+  readonly instance: WebassemblyInstance<Exports & WebAssemblyDefaultExports>;
 };
 
 const fetchRequireAsBase64 = async (moduleId: number): Promise<string> => {
@@ -128,45 +139,53 @@ export async function instantiate<Exports extends object>(
 
   const stackSizeInBytes = memory?.__initial ?? DEFAULT_STACK_SIZE_IN_BYTES;
 
-  const instanceResult = reactNativeWebAssembly.RNWebassembly_instantiate({
-    iid,
-    bufferSource:
-      typeof bufferSource === 'number'
-        ? await fetchRequireAsBase64(bufferSource)
-        : Buffer.from(bufferSource).toString('base64'),
-    stackSizeInBytes,
-    callback: ({ func, args, module }) => {
-      const maybeModule = importObject[module];
+  const bufferSourceBase64 =
+    typeof bufferSource === 'number'
+      ? await fetchRequireAsBase64(bufferSource)
+      : Buffer.from(bufferSource).toString('base64');
 
-      if (!maybeModule)
-        throw new Error(
-          `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
-        );
+  const {
+    result: instanceResult,
+    buffer: maybeBuffer,
+  }: InstantiateCallbackResult =
+    reactNativeWebAssembly.RNWebassembly_instantiate({
+      iid,
+      bufferSource: bufferSourceBase64,
+      stackSizeInBytes,
+      callback: ({ func, args, module }) => {
+        const maybeModule = importObject[module];
 
-      // @ts-ignore
-      const maybeFunction = maybeModule?.[func];
+        if (!maybeModule)
+          throw new Error(
+            `[WebAssembly]: Tried to invoke a function belonging to module "${module}", but this was not defined.`
+          );
 
-      if (!maybeFunction)
-        throw new Error(
-          `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
-        );
+        // @ts-ignore
+        const maybeFunction = maybeModule?.[func];
 
-      return maybeFunction(...args.map(parseFloat));
-    },
-  });
+        if (!maybeFunction)
+          throw new Error(
+            `[WebAssembly]: Tried to invoke a function "${func}" belonging to module "${module}", but it was not defined.`
+          );
+
+        return maybeFunction(...args.map(parseFloat));
+      },
+    });
 
   if (instanceResult !== 0)
     throw new Error(`Failed to instantiate WebAssembly. (${instanceResult})`);
 
   const exports = new Proxy({} as Exports, {
-    get(_, func) {
-      if (typeof func !== 'string')
-        throw new Error(`Expected string, encountered ${typeof func}.`);
+    get(_, exportName) {
+      if (typeof exportName !== 'string')
+        throw new Error(`Expected string, encountered ${typeof exportName}.`);
+
+      if (exportName === 'memory') return maybeBuffer;
 
       return (...args: readonly number[]) => {
         const res = reactNativeWebAssembly.RNWebassembly_invoke({
           iid,
-          func,
+          func: exportName,
           args: args.map((e) => e.toString()),
         });
 
