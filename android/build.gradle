@@ -33,6 +33,7 @@ def getExtOrIntegerDefault(name) {
 android {
   ndkVersion getExtOrDefault("ndkVersion")
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+  namespace("com.webassembly")
 
   defaultConfig {
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
